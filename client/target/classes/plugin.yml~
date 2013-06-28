@@ -1,0 +1,6 @@
+name: mcMMOBungeeData
+version: 0.1
+main: me.riking.bungeemmo.bukkit.PluginMain
+
+depends: [mcMMO]
+
