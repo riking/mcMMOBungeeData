@@ -1,0 +1,9 @@
+Tasks to do on updates:
+ - Increment version in parent pom.xml
+ - Increment parent version in all 3 child pom.xmls
+ - Change mcMMO, Bukkit, and BungeeCord version numbers
+ - Change Transit classes to reflect mcMMO updates
+ - Check for changes to DatabaseManger
+ - Generate new serialVersionUID for every Transit class in common/
+ - Add database transitional code in proxy/
+ 
