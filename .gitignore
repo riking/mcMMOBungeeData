@@ -2,6 +2,9 @@
 /.classpath
 /.project
 /.settings
+/*/.classpath
+/*/.project
+/*/.settings
 
 # netbeans
 /nbproject
@@ -11,9 +14,13 @@
 
 # maven
 /target
+/*/target
 
 # vim
 .*.sw[a-p]
+
+# gedit
+*~
 
 # various other potential build files
 /build
