@@ -1,0 +1,15 @@
+# Config file for mcMMOBungeeData, Bukkit-Side
+# Explanations
+# proxy-ips: These are the IPs permitted to establish a connection to the server.
+#   If mcMMOBungeeData is kicking all your players, you need to add the BungeeCord
+#   IP to this list and tell them to join via BungeeCord. "ANY_LOCAL" is a special
+#   case to allow localhost and any address on the same router to connect, which
+#   should take care of most BungeeCord setups. "LOOPBACK" is a special case to
+#   allow only connections from the same computer (necessary for LAN setups).
+#
+#   Note that if you try to work around this restriction, the plugin will not work right.
+#
+#
+
+proxy-ips:
+  - "ANY_LOCAL"

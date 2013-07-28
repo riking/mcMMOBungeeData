@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import me.riking.bungeemmo.common.data.TransitPlayerProfile;
 
@@ -16,6 +17,13 @@ import me.riking.bungeemmo.common.data.TransitPlayerProfile;
 public class PluginMessageUtil {
     public static final String MCMMO_CHANNEL_NAME = "mcMMOdatabase";
     public static final String BUNGEE_CHANNEL_NAME = "BungeeCord";
+
+    /**
+     * The queue of pending outgoing messages. Messages are NOT automatically
+     * inserted into or removed into the queue, that happens in the
+     * plugin-space.
+     */
+    public static ConcurrentLinkedQueue<Message> queue = new ConcurrentLinkedQueue<Message>();
 
     /**
      * A server tells the proxy that it has started up and is running mcMMO.
@@ -77,7 +85,18 @@ public class PluginMessageUtil {
      * @param Channel MCMMO_CHANNEL_NAME
      * @param UTF Server name
      */
-    public static final String ANNOUNCE_SUBCHANNEL = "AN";
+    public static final String ANNOUNCE_SUBCHANNEL = "AN"; // announce.New
+
+    /**
+     * The server tells the proxy that it is shutting down.
+     * <p>
+     * This is a Server -> Proxy subchannel.
+     * <p>
+     * There is no data for this subchannel.
+     *
+     * @param Channel MCMMO_CHANNEL_NAME
+     */
+    public static final String SERVER_STOP_SUBCHANNEL = "AQ"; // announce.Quit
 
     /**
      * A server requests a PlayerProfile from the proxy. The proxy must
@@ -89,7 +108,7 @@ public class PluginMessageUtil {
      * @param UTF PULL_PROFILE_SUBCHANNEL
      * @param UTF Player Name
      */
-    public static final String PULL_PROFILE_SUBCHANNEL = "PG";
+    public static final String PULL_PROFILE_SUBCHANNEL = "PG"; // proxy.Get
 
     /**
      * A server puts a PlayerProfile onto the proxy. No response should be
@@ -103,7 +122,7 @@ public class PluginMessageUtil {
      *            success or self-initiated
      * @param Object {@link TransitPlayerProfile}
      */
-    public static final String PUSH_PROFILE_SUBCHANNEL = "PP";
+    public static final String PUSH_PROFILE_SUBCHANNEL = "PP"; // proxy.Put
 
     /**
      * One server attempts to request a PlayerProfile from another. This
@@ -116,7 +135,7 @@ public class PluginMessageUtil {
      * @param UTF Server to reply to
      * @param UTF Player name
      */
-    public static final String PULL_TRANSFER_SUBCHANNEL = "TG";
+    public static final String PULL_TRANSFER_SUBCHANNEL = "TG"; // transfer.Get
 
     /**
      * One server is giving a PlayerProfile to another. No response should be
@@ -130,7 +149,7 @@ public class PluginMessageUtil {
      *            success or self-initiated
      * @param Object the TransferPlayerProfile
      */
-    public static final String PUSH_TRANSFER_SUBCHANNEL = "TP";
+    public static final String PUSH_TRANSFER_SUBCHANNEL = "TP"; // transfer.Put
 
     /**
      * A pretty version string to print on mismatches
@@ -165,7 +184,7 @@ public class PluginMessageUtil {
     }
 
     @SuppressWarnings("unchecked")
-    public Message readIncomingMessage(byte[] data) throws IOException {
+    public static Message readIncomingMessage(byte[] data) throws IOException {
         try {
             ByteArrayInputStream bytesIn = new ByteArrayInputStream(data);
             ObjectInputStream in = new ObjectInputStream(bytesIn);
@@ -173,6 +192,7 @@ public class PluginMessageUtil {
             if (subchannel == STARTUP_SUBCHANNEL) {
                 long senderVid = in.readLong();
                 String senderVer = in.readUTF();
+                in.close();
                 return new StartupMessage(senderVid, senderVer);
 
             } else if (subchannel == WELCOME_SUBCHANNEL) {
@@ -181,26 +201,38 @@ public class PluginMessageUtil {
                 try {
                     serverList = (ArrayList<String>) in.readObject();
                     // Type-check the array
-                    for (@SuppressWarnings("unused") String s : serverList) { }
+                    for (@SuppressWarnings("unused")
+                    String s : serverList) {
+                    }
                 } catch (ClassNotFoundException e) {
                     throw new MalformedMessageException("Expected an ArrayList of strings", e);
                 } catch (ClassCastException e) {
                     throw new MalformedMessageException("Expected an ArrayList of strings", e);
                 }
+                in.close();
                 return new WelcomeMessage(serverName, serverList);
 
             } else if (subchannel == BAD_VERSION_SUBCHANNEL) {
                 long correctVid = in.readLong();
                 String correctVer = in.readUTF();
+                in.close();
                 return new BadVersionMessage(correctVid, correctVer);
 
             } else if (subchannel == ANNOUNCE_SUBCHANNEL) {
                 String newServerName = in.readUTF();
-                return new AnnounceMessage(newServerName);
+                boolean stopping = in.readBoolean();
+                in.close();
+                return new AnnounceMessage(newServerName, stopping);
+
+            } else if (subchannel == SERVER_STOP_SUBCHANNEL) {
+                in.close();
+                return new ServerStopMessage();
 
             } else if (subchannel == PULL_PROFILE_SUBCHANNEL) {
                 String playerName = in.readUTF();
-                return new ProfilePullMessage(playerName);
+                boolean create = in.readBoolean();
+                in.close();
+                return new ProfilePullMessage(playerName, create);
 
             } else if (subchannel == PUSH_PROFILE_SUBCHANNEL) {
                 boolean failure = in.readBoolean();
@@ -212,11 +244,13 @@ public class PluginMessageUtil {
                 } catch (ClassCastException e) {
                     throw new MalformedMessageException("Expected a TransitPlayerProfile", e);
                 }
+                in.close();
                 return new ProfilePushMessage(profile, failure);
 
             } else if (subchannel == PULL_TRANSFER_SUBCHANNEL) {
                 String replyServer = in.readUTF();
                 String playerName = in.readUTF();
+                in.close();
                 return new TransferPullMessage(playerName, replyServer, null);
 
             } else if (subchannel == PUSH_TRANSFER_SUBCHANNEL) {
@@ -229,6 +263,7 @@ public class PluginMessageUtil {
                 } catch (ClassCastException e) {
                     throw new MalformedMessageException("Expected a TransitPlayerProfile", e);
                 }
+                in.close();
                 return new TransferPushMessage(profile, failure);
             }
         } catch (Exception e) {

@@ -1,8 +1,6 @@
 package me.riking.bungeemmo.common.data;
 
-import java.io.Serializable;
-
-public enum TransitMobHealthbarType implements Serializable{
+public enum TransitMobHealthbarType implements java.io.Serializable {
     HEARTS,
     BAR,
     DISABLED,

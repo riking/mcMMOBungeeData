@@ -1,8 +1,6 @@
 package me.riking.bungeemmo.common.data;
 
-import java.io.Serializable;
-
-public enum TransitSkillType implements Serializable {
+public enum TransitSkillType implements java.io.Serializable {
     ACROBATICS,
     ARCHERY,
     AXES,

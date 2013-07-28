@@ -5,9 +5,11 @@ import java.io.ObjectOutputStream;
 
 public class AnnounceMessage extends AbstractProxyServerMessage {
     public final String newServerName;
+    public final boolean adding;
 
-    public AnnounceMessage(String newServerName) {
+    public AnnounceMessage(String newServerName, boolean adding) {
         this.newServerName = newServerName;
+        this.adding = adding;
     }
 
     @Override
@@ -18,5 +20,6 @@ public class AnnounceMessage extends AbstractProxyServerMessage {
     @Override
     protected void writeData(ObjectOutputStream out) throws IOException {
         out.writeUTF(newServerName);
+        out.writeBoolean(adding);
     }
 }

@@ -1,6 +1,13 @@
 name: mcMMOBungeeData
+prefix: "MmoBcDb"
 version: 0.1
 main: me.riking.bungeemmo.bukkit.PluginMain
 
 loadbefore: [mcMMO]
 
+author: Riking
+description: >
+    BungeeCord integration for mcMMO servers. This plugin requires BungeeCord
+    to be set up for your CraftBukkit server. Additionally, it has a built-in
+    protection feature against players connecting directly to the server (as
+    this would allow them to give false data and boost their mcMMO stats).

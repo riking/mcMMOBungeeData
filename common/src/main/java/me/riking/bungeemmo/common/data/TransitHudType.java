@@ -1,8 +1,6 @@
 package me.riking.bungeemmo.common.data;
 
-import java.io.Serializable;
-
-public enum TransitHudType implements Serializable {
+public enum TransitHudType implements java.io.Serializable {
     DISABLED,
     STANDARD,
     SMALL,

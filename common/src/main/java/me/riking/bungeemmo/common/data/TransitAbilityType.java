@@ -1,8 +1,6 @@
 package me.riking.bungeemmo.common.data;
 
-import java.io.Serializable;
-
-public enum TransitAbilityType implements Serializable {
+public enum TransitAbilityType implements java.io.Serializable {
     BERSERK,
     SUPER_BREAKER,
     GIGA_DRILL_BREAKER,
