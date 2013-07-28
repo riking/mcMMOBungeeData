@@ -5,11 +5,11 @@ import java.io.ObjectOutputStream;
 
 import me.riking.bungeemmo.common.data.TransitPlayerProfile;
 
-public class ServerPushMessage extends AbstractProxyServerMessage {
+public class ProfilePushMessage extends AbstractProxyServerMessage {
     public final TransitPlayerProfile profile;
     public final boolean success;
 
-    public ServerPushMessage(TransitPlayerProfile profile, boolean success) {
+    public ProfilePushMessage(TransitPlayerProfile profile, boolean success) {
         this.profile = profile;
         this.success = success;
     }
@@ -22,6 +22,6 @@ public class ServerPushMessage extends AbstractProxyServerMessage {
 
     @Override
     public String getSubchannel() {
-        return PluginMessageUtil.PUSH_PROXY_SUBCHANNEL;
+        return PluginMessageUtil.PUSH_PROFILE_SUBCHANNEL;
     }
 }

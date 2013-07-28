@@ -4,10 +4,10 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 
 
-public class ServerPullMessage extends AbstractProxyServerMessage {
+public class ProfilePullMessage extends AbstractProxyServerMessage {
     public final String playerName;
 
-    public ServerPullMessage(String playerName) {
+    public ProfilePullMessage(String playerName) {
         this.playerName = playerName;
     }
 
@@ -18,6 +18,6 @@ public class ServerPullMessage extends AbstractProxyServerMessage {
 
     @Override
     public String getSubchannel() {
-        return PluginMessageUtil.PULL_PROXY_SUBCHANNEL;
+        return PluginMessageUtil.PULL_PROFILE_SUBCHANNEL;
     }
 }
