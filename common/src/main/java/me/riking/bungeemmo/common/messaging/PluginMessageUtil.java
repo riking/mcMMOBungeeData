@@ -167,7 +167,6 @@ public class PluginMessageUtil {
     @SuppressWarnings("unchecked")
     public Message readIncomingMessage(byte[] data) throws IOException {
         try {
-
             ByteArrayInputStream bytesIn = new ByteArrayInputStream(data);
             ObjectInputStream in = new ObjectInputStream(bytesIn);
             String subchannel = in.readUTF();
@@ -182,7 +181,7 @@ public class PluginMessageUtil {
                 try {
                     serverList = (ArrayList<String>) in.readObject();
                     // Type-check the array
-                    for (String s : serverList) { }
+                    for (@SuppressWarnings("unused") String s : serverList) { }
                 } catch (ClassNotFoundException e) {
                     throw new MalformedMessageException("Expected an ArrayList of strings", e);
                 } catch (ClassCastException e) {
@@ -231,7 +230,6 @@ public class PluginMessageUtil {
                     throw new MalformedMessageException("Expected a TransitPlayerProfile", e);
                 }
                 return new TransferPushMessage(profile, failure);
-
             }
         } catch (Exception e) {
             throw new MalformedMessageException(e);
