@@ -3,7 +3,6 @@ package me.riking.bungeemmo.common.messaging;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
-import me.riking.bungeemmo.common.PluginMessageUtil;
 import me.riking.bungeemmo.common.data.TransitPlayerProfile;
 
 /**

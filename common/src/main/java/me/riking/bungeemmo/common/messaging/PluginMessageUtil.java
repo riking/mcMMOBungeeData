@@ -1,4 +1,4 @@
-package me.riking.bungeemmo.common;
+package me.riking.bungeemmo.common.messaging;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -8,15 +8,6 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 
 import me.riking.bungeemmo.common.data.TransitPlayerProfile;
-import me.riking.bungeemmo.common.messaging.BadVersionMessage;
-import me.riking.bungeemmo.common.messaging.Message;
-import me.riking.bungeemmo.common.messaging.ProxyPullMessage;
-import me.riking.bungeemmo.common.messaging.ProxyPushMessage;
-import me.riking.bungeemmo.common.messaging.ServerPullMessage;
-import me.riking.bungeemmo.common.messaging.ServerPushMessage;
-import me.riking.bungeemmo.common.messaging.TransferPullMessage;
-import me.riking.bungeemmo.common.messaging.TransferPushMessage;
-import me.riking.bungeemmo.common.messaging.VersionAnnounceMessage;
 
 public class PluginMessageUtil {
     public static final String MCMMO_CHANNEL_NAME = "mcMMOdatabase";

@@ -4,7 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
-import me.riking.bungeemmo.common.PluginMessageUtil;
 
 public abstract class AbstractProxyServerMessage implements Message {
     public String getSendingChannelName() {

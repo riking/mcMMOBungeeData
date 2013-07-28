@@ -7,7 +7,6 @@ import java.io.ObjectOutputStream;
 
 import org.apache.commons.lang.Validate;
 
-import me.riking.bungeemmo.common.PluginMessageUtil;
 
 public abstract class AbstractServerServerMessage implements Message {
     public final String destinationServer;
