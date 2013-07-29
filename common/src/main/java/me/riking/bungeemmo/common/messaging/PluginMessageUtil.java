@@ -170,7 +170,7 @@ public class PluginMessageUtil {
             result = read.readLine();
             read.close();
             ins.close();
-        } catch (IOException e) {
+        } catch (Exception e) {
             if (result == null) {
                 System.err.println("[mcMMOBungeeData] Error - could not read version file?");
                 e.printStackTrace();
