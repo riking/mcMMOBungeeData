@@ -4,6 +4,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 
+import me.riking.bungeemmo.bukkit.datastore.DataStore;
+import me.riking.bungeemmo.bukkit.fetcher.DataFetcher;
 import me.riking.bungeemmo.bukkit.tasks.HeartbeatSendPacket;
 import me.riking.bungeemmo.common.data.TransitPlayerProfile;
 import me.riking.bungeemmo.common.messaging.PluginMessageUtil;
@@ -18,42 +20,47 @@ import com.gmail.nossr50.database.DatabaseManagerFactory;
 import com.gmail.nossr50.util.player.UserManager;
 
 public class BukkitPlugin extends JavaPlugin {
+    public static Thread serverThread;
+    public BungeeDatabaseManager dbMan;
     public ConnectionManager connMan;
     public DataFetcher dataFetcher;
+    public DataStore dataStore;
     public PlayerListener playerListener;
+
+    public String shortName;
 
     public InetAddress backupProxy;
     public int backupPort;
 
     @Override
     public void onLoad() {
+        serverThread = Thread.currentThread();
         // This will throw an exception if the mcMMO version is bad
         DatabaseManagerFactory.setCustomDatabaseManagerClass(BungeeDatabaseManager.class);
     }
 
     @Override
     public void onEnable() {
+        shortName = getDescription().getPrefix();
+
+        playerListener = new PlayerListener(this);
+        Bukkit.getPluginManager().registerEvents(playerListener, this);
+
+        dbMan = (BungeeDatabaseManager) DatabaseManagerFactory.getDatabaseManager();
+
         Bukkit.getMessenger().registerOutgoingPluginChannel(this, PluginMessageUtil.BUNGEE_CHANNEL_NAME);
         Bukkit.getMessenger().registerOutgoingPluginChannel(this, PluginMessageUtil.MCMMO_CHANNEL_NAME);
         //Bukkit.getMessenger().registerIncomingPluginChannel(this, PluginMessageUtil.BUNGEE_CHANNEL_NAME, listener);
         Bukkit.getMessenger().registerIncomingPluginChannel(this, PluginMessageUtil.MCMMO_CHANNEL_NAME, new McmmoMessageListener(this));
 
-        new HeartbeatSendPacket(this); // self-schedules
         connMan = new ConnectionManager(this);
         dataFetcher = new DataFetcher(this);
-        playerListener = new PlayerListener(this);
-        Bukkit.getPluginManager().registerEvents(playerListener, this);
+        dataStore = new DataStore(this);
+
+        new HeartbeatSendPacket(this); // self-schedules
 
         // Protocol startup
-        connMan.addPacket(new StartupMessage(TransitPlayerProfile.getVersion(), PluginMessageUtil.prettyVersion));
-        Player[] players = getServer().getOnlinePlayers();
-        if (players.length != 0) {
-            // This only happens on reload, so we need to get all the profiles back
-            for (Player p : players) {
-                connMan.addPacket(new ProfilePullMessage(p.getName(), true));
-            }
-        }
-        connMan.heartbeat();
+        connMan.onEnable();
     }
 
     @Override
@@ -61,9 +68,9 @@ public class BukkitPlugin extends JavaPlugin {
         // Do mcMMO's saving for it, then clear the player list to avoid any double-saving
         UserManager.saveAll();
         UserManager.clearAll();
+        connMan.addPacket(m)
         connMan.heartbeat();
         connMan.onEmptyServer();
-        connMan.close();
     }
 
     /**

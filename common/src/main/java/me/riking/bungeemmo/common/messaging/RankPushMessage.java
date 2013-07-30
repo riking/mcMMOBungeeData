@@ -3,21 +3,21 @@ package me.riking.bungeemmo.common.messaging;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
-import me.riking.bungeemmo.common.data.TransitPlayerProfile;
+import me.riking.bungeemmo.common.data.TransitPlayerRank;
 
-public class ProfilePushMessage extends AbstractProxyServerMessage {
+public class RankPushMessage extends AbstractProxyServerMessage {
     public final String playerName;
-    public final TransitPlayerProfile profile;
+    public final TransitPlayerRank rank;
 
-    public ProfilePushMessage(String playerName, TransitPlayerProfile profile) {
+    public RankPushMessage(String playerName, TransitPlayerRank rank) {
         this.playerName = playerName;
-        this.profile = profile;
+        this.rank = rank;
     }
 
     @Override
     public void writeData(ObjectOutputStream out) throws IOException {
         out.writeUTF(playerName);
-        out.writeObject(profile);
+        out.writeObject(rank);
     }
 
     @Override

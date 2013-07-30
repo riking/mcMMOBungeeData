@@ -9,7 +9,7 @@ import java.util.Map;
 
 import org.apache.commons.lang.Validate;
 
-public class TransitPlayerProfile implements Serializable {
+public final class TransitPlayerProfile implements Serializable {
     /**
      * Version 1.4.06
      * <p>

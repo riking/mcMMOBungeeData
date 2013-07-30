@@ -1,6 +1,5 @@
 package me.riking.bungeemmo.bukkit;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -20,11 +19,20 @@ public class ConnectionManager {
     private final Plugin plugin;
     private final ConcurrentLinkedQueue<Message> queue; // helper to avoid constant dereferencing
     public final ArrayList<String> otherServers;
+    private boolean established = false;
+    private boolean couldSend = false;
 
     public ConnectionManager(Plugin plugin) {
         this.plugin = plugin;
         this.queue = PluginMessageUtil.queue;
         otherServers = new ArrayList<String>(4);
+    }
+
+    /**
+     * When WelcomeMessage is recieved
+     */
+    public void established() {
+        established = true;
     }
 
     public void addPacket(Message m) {
@@ -39,9 +47,28 @@ public class ConnectionManager {
         if (!queue.isEmpty()) {
             Player[] players = Bukkit.getOnlinePlayers();
             if (players.length != 0) {
+                couldSend = true;
+                onRestore();
                 while (send(players[0]));
+            } else {
+                couldSend = false;
+                onDrop();
             }
         }
+    }
+
+    public boolean isConnected() {
+        return couldSend;
+    }
+
+    private void onDrop() {
+        // TODO Auto-generated method stub
+
+    }
+
+    private void onRestore() {
+        // TODO Auto-generated method stub
+
     }
 
     private boolean send(Player player) {
@@ -50,10 +77,8 @@ public class ConnectionManager {
             return false;
         }
 
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
-            m.write(out);
-            player.sendPluginMessage(plugin, m.getSendingChannelName(), out.toByteArray());
+            player.sendPluginMessage(plugin, m.getSendingChannelName(), PluginMessageUtil.writeMessage(m));
         } catch (MessageTooLargeException e) {
             System.err.println(m.getClass().getSimpleName() + " message was too large");
             e.printStackTrace();
@@ -63,13 +88,27 @@ public class ConnectionManager {
         return true;
     }
 
+    public void onEnable() {
+        // Queue startup announce
+        addPacket(new StartupMessage(TransitPlayerProfile.getVersion(), PluginMessageUtil.prettyVersion));
+
+        Player[] players = plugin.getServer().getOnlinePlayers();
+        if (players.length != 0) {
+            // This only happens on reload, so we need to get all the profiles back
+            for (Player p : players) {
+                addPacket(new ProfilePullMessage(p.getName(), true));
+            }
+        }
+        heartbeat();
+    }
+
     public void onEmptyServer() {
-        plugin.getLogger().info("Server is empty");
         if (queue.isEmpty()) {
-            plugin.getLogger().info("No messages in queue, we're fine.");
+            plugin.getLogger().info("No messages in queue, shutting down.");
             return;
         }
 
-        plugin.getLogger().warning("Leftover packets to send. Attempting backup protocol...");
+        plugin.getLogger().warning("Leftover packets to send. Initiating backup connection...");
+        // XXX todo
     }
 }
