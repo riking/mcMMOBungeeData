@@ -1,8 +1,10 @@
 package me.riking.bungeemmo.bukkit;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.logging.Level;
 
+import me.riking.bungeemmo.common.data.TransitLeaderboardValue;
 import me.riking.bungeemmo.common.data.TransitPlayerProfile;
 import me.riking.bungeemmo.common.messaging.AnnounceMessage;
 import me.riking.bungeemmo.common.messaging.BadVersionMessage;
@@ -18,6 +20,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 
+import com.gmail.nossr50.datatypes.database.PlayerStat;
 import com.gmail.nossr50.datatypes.player.PlayerProfile;
 
 public class McmmoMessageListener implements PluginMessageListener {
@@ -63,10 +66,15 @@ public class McmmoMessageListener implements PluginMessageListener {
             plugin.connMan.otherServers.add(me.newServerName);
         } else if (m instanceof ProfilePushMessage) {
             ProfilePushMessage me = (ProfilePushMessage) m;
-            plugin.dataFetcher.fulfill(me);
+            plugin.dataFetcher.fulfill(me.playerName, me.profile);
         } else if (m instanceof LeaderboardPushMessage) {
             LeaderboardPushMessage me = (LeaderboardPushMessage) m;
-            plugin.dataFetcher.fulfill(me);
+            ArrayList<TransitLeaderboardValue> transit = me.values;
+            ArrayList<PlayerStat> mcmmo = new ArrayList<PlayerStat>();
+            for (TransitLeaderboardValue tr : transit) {
+                mcmmo.add(new PlayerStat(tr.name, tr.val));
+            }
+            plugin.dataFetcher.fulfill(me.getRequest(), );
         } else if (m instanceof RankPushMessage) {
             RankPushMessage me = (RankPushMessage) m;
             plugin.dataFetcher.fulfill(me);

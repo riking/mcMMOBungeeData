@@ -4,12 +4,13 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 
-import me.riking.bungeemmo.bukkit.datastore.DataStore;
 import me.riking.bungeemmo.bukkit.fetcher.DataFetcher;
+import me.riking.bungeemmo.bukkit.fetcher.DataStore;
 import me.riking.bungeemmo.bukkit.tasks.HeartbeatSendPacket;
 import me.riking.bungeemmo.common.data.TransitPlayerProfile;
 import me.riking.bungeemmo.common.messaging.PluginMessageUtil;
 import me.riking.bungeemmo.common.messaging.ProfilePullMessage;
+import me.riking.bungeemmo.common.messaging.ServerStopMessage;
 import me.riking.bungeemmo.common.messaging.StartupMessage;
 
 import org.bukkit.Bukkit;
@@ -21,6 +22,7 @@ import com.gmail.nossr50.util.player.UserManager;
 
 public class BukkitPlugin extends JavaPlugin {
     public static Thread serverThread;
+    private static BukkitPlugin instance;
     public BungeeDatabaseManager dbMan;
     public ConnectionManager connMan;
     public DataFetcher dataFetcher;
@@ -41,6 +43,7 @@ public class BukkitPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        instance = this;
         shortName = getDescription().getPrefix();
 
         playerListener = new PlayerListener(this);
@@ -68,9 +71,22 @@ public class BukkitPlugin extends JavaPlugin {
         // Do mcMMO's saving for it, then clear the player list to avoid any double-saving
         UserManager.saveAll();
         UserManager.clearAll();
-        connMan.addPacket(m)
+        connMan.addPacket(new ServerStopMessage());
         connMan.heartbeat();
-        connMan.onEmptyServer();
+    }
+
+    /**
+     * Uses:
+     * <ol>
+     * <li>All 3 Futures' get() methods</li>
+     * </ol>
+     *
+     * Please keep the size of this list to a MINIMUM.
+     *
+     * @return the plugin instance
+     */
+    public static BukkitPlugin getInstance() {
+        return instance;
     }
 
     /**

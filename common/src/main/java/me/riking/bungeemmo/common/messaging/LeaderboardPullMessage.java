@@ -23,13 +23,13 @@ public class LeaderboardPullMessage extends AbstractProxyServerMessage {
         perPage = request.perPage;
     }
 
+    public LeaderboardRequest getRequest() {
+        return new LeaderboardRequest(skill, page, perPage);
+    }
+
     @Override
     public String getSubchannel() {
         return PluginMessageUtil.PULL_LEADERBOARD_SUBCHANNEL;
-    }
-
-    public LeaderboardRequest getObject() {
-        return new LeaderboardRequest(skill, page, perPage);
     }
 
     @Override

@@ -28,6 +28,10 @@ public class LeaderboardPushMessage extends AbstractProxyServerMessage {
         this.values = values;
     }
 
+    public LeaderboardRequest getRequest() {
+        return new LeaderboardRequest(skill, page, perPage);
+    }
+
     @Override
     public String getSubchannel() {
         return PluginMessageUtil.PUSH_LEADERBOARD_SUBCHANNEL;

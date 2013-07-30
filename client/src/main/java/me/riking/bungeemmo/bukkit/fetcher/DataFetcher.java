@@ -23,16 +23,16 @@ import me.riking.bungeemmo.common.messaging.RankPullMessage;
  * main thread.
  */
 public class DataFetcher {
-    private final BukkitPlugin plugin;
-    private final Map<String, ProfileFuture> pendingProfiles;
-    private final Map<String, RankFuture> pendingRanks;
-    private final Map<LeaderboardRequest, LeaderboardFuture> pendingLeaderboard;
+    final BukkitPlugin plugin;
+    final Map<String, DataFuture<TransitPlayerProfile>> pendingProfiles;
+    final Map<String, DataFuture<TransitPlayerRank>> pendingRanks;
+    final Map<LeaderboardRequest, DataFuture<List<PlayerStat>>> pendingLeaderboard;
 
     public DataFetcher(BukkitPlugin plugin) {
         this.plugin = plugin;
-        this.pendingProfiles = new HashMap<String, ProfileFuture>();
-        this.pendingRanks = new HashMap<String, RankFuture>();
-        this.pendingLeaderboard = new HashMap<LeaderboardRequest, LeaderboardFuture>();
+        this.pendingProfiles = new HashMap<String, DataFuture<TransitPlayerProfile>>();
+        this.pendingRanks = new HashMap<String, DataFuture<TransitPlayerRank>>();
+        this.pendingLeaderboard = new HashMap<LeaderboardRequest, DataFuture<List<PlayerStat>>>();
     }
 
     /**
@@ -42,7 +42,7 @@ public class DataFetcher {
         plugin.dataStore.cachedProfiles.put(player, TransitDataConverter.fromTransit(profile));
 
         synchronized (pendingProfiles) {
-            ProfileFuture future = pendingProfiles.remove(player);
+            DataFuture<TransitPlayerProfile> future = pendingProfiles.remove(player);
             if (future != null) {
                 future.fulfill(profile);
             }
@@ -59,7 +59,7 @@ public class DataFetcher {
         plugin.dataStore.cachedRanks.put(player, data);
 
         synchronized (pendingRanks) {
-            RankFuture future = pendingRanks.get(player);
+            DataFuture<TransitPlayerRank> future = pendingRanks.remove(player);
             if (future != null) {
                 future.fulfill(rank);
             }
@@ -76,14 +76,14 @@ public class DataFetcher {
         plugin.dataStore.cachedLeaderboard.put(request, data);
 
         synchronized (pendingLeaderboard) {
-            LeaderboardFuture future = pendingLeaderboard.get(request);
+            DataFuture<List<PlayerStat>> future = pendingLeaderboard.remove(request);
             if (future != null) {
                 future.fulfill(board);
             }
         }
     }
 
-    public ProfileFuture getProfile(String playerName) {
+    public DataFuture<TransitPlayerProfile> getProfile(String playerName) {
         return getProfile(playerName, true);
     }
 
@@ -93,14 +93,14 @@ public class DataFetcher {
      * @param playerName
      * @return the ProfileFuture that will recieve the data
      */
-    public ProfileFuture getProfile(String playerName, boolean createInDb) {
-        ProfileFuture future;
+    public DataFuture<TransitPlayerProfile> getProfile(String playerName, boolean createInDb) {
+        DataFuture<TransitPlayerProfile> future;
         synchronized (pendingProfiles) {
             future = pendingProfiles.get(playerName);
             if (future != null) {
                 return future;
             }
-            future = new ProfileFuture();
+            future = new DataFuture<TransitPlayerProfile>();
             pendingProfiles.put(playerName, future);
         }
 
@@ -108,14 +108,14 @@ public class DataFetcher {
         return future;
     }
 
-    public RankFuture getRank(String playerName) {
-        RankFuture future;
+    public DataFuture<TransitPlayerRank> getRank(String playerName) {
+        DataFuture<TransitPlayerRank> future;
         synchronized (pendingRanks) {
             future = pendingRanks.get(playerName);
             if (future != null) {
                 return future;
             }
-            future = new RankFuture();
+            future = new DataFuture<TransitPlayerRank>();
             pendingRanks.put(playerName, future);
         }
 
@@ -123,14 +123,14 @@ public class DataFetcher {
         return future;
     }
 
-    public LeaderboardFuture getLeaderboard(LeaderboardRequest request) {
-        LeaderboardFuture future;
+    public DataFuture<List<PlayerStat>> getLeaderboard(LeaderboardRequest request) {
+        DataFuture<List<PlayerStat>> future;
         synchronized (pendingLeaderboard) {
             future = pendingLeaderboard.get(request);
             if (future != null) {
                 return future;
             }
-            future = new LeaderboardFuture();
+            future = new DataFuture<List<PlayerStat>>();
             pendingLeaderboard.put(request, future);
         }
 
@@ -138,17 +138,29 @@ public class DataFetcher {
         return future;
     }
 
-    private void startProfileFetch(String playerName, boolean createInDb) {
+    public DataFuture<TransitPlayerProfile> getPendingProfile(String player) {
+        return pendingProfiles.get(player);
+    }
+
+    public DataFuture<TransitPlayerRank> getPendingRank(String player) {
+        return pendingRanks.get(player);
+    }
+
+    public DataFuture<List<PlayerStat>> getPendingLeaderboard(LeaderboardRequest request) {
+        return pendingLeaderboard.get(request);
+    }
+
+    void startProfileFetch(String playerName, boolean createInDb) {
         ProfilePullMessage m = new ProfilePullMessage(playerName, createInDb);
         plugin.connMan.addPacket(m);
     }
 
-    private void startRankFetch(String playerName) {
+    void startRankFetch(String playerName) {
         RankPullMessage m = new RankPullMessage(playerName);
         plugin.connMan.addPacket(m);
     }
 
-    private void startLeaderFetch(LeaderboardRequest request) {
+    void startLeaderFetch(LeaderboardRequest request) {
         LeaderboardPullMessage m = new LeaderboardPullMessage(request);
         plugin.connMan.addPacket(m);
     }

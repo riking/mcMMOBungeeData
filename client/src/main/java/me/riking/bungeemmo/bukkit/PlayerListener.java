@@ -3,7 +3,10 @@ package me.riking.bungeemmo.bukkit;
 import java.net.InetAddress;
 import java.util.ArrayList;
 
+import me.riking.bungeemmo.bukkit.fetcher.DataFuture;
 import me.riking.bungeemmo.bukkit.tasks.TaskAddToBlockedPlayers;
+import me.riking.bungeemmo.bukkit.tasks.TrashCachedProfileTask;
+import me.riking.bungeemmo.common.data.TransitPlayerProfile;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -69,24 +72,28 @@ public class PlayerListener implements Listener {
         if (event.getResult() != PlayerLoginEvent.Result.ALLOWED) {
             return;
         }
-        plugin.dataFetcher.startFetch(event.getPlayer().getName(), true);
+
+        plugin.dataFetcher.getProfile(event.getPlayer().getName());
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onJoinLater(PlayerJoinEvent event) {
         Player p = event.getPlayer();
         String playerName = p.getName();
-        if (plugin.dataFetcher.isPending(playerName)) {
-            PlayerProfile profile = plugin.dataFetcher.tryGet(playerName);
-            if (profile == null) {
-                p.sendMessage(ChatColor.RED + "Please wait while your mcMMO data is fetched.");
-                plugin.getServer().getScheduler().runTask(plugin, new TaskAddToBlockedPlayers(plugin, p.getName()));
-            }
-        }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
+        String playerName = event.getPlayer().getName();
+        DataFuture<TransitPlayerProfile> future = plugin.dataFetcher.getPendingProfile(playerName);
+        if (future != null) {
+            future.cancel(true);
+        }
+
+        if (plugin.isEnabled()) {
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, new TrashCachedProfileTask(plugin, playerName));
+        }
+
         McMMOPlayer mp = UserManager.getPlayer(event.getPlayer());
         mp.getProfile().save();
 

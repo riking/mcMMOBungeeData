@@ -1,13 +1,17 @@
 package me.riking.bungeemmo.bukkit;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-import me.riking.bungeemmo.bukkit.fetcher.LeaderboardFuture;
-import me.riking.bungeemmo.bukkit.fetcher.ProfileFuture;
+import me.riking.bungeemmo.bukkit.fetcher.DataFuture;
+import me.riking.bungeemmo.bukkit.tasks.TaskWaitForPlayerProfile;
 import me.riking.bungeemmo.common.data.LeaderboardRequest;
+import me.riking.bungeemmo.common.data.TransitPlayerProfile;
+import me.riking.bungeemmo.common.data.TransitPlayerRank;
 import me.riking.bungeemmo.common.messaging.ProfilePushMessage;
 
 import com.gmail.nossr50.database.DatabaseManager;
@@ -49,9 +53,9 @@ public class BungeeDatabaseManager implements DatabaseManager {
             // Skip requesting
             return cached;
         }
-        ProfileFuture future = plugin.dataFetcher.getProfile(playerName, createIfEmpty);
-        // TODO now what, we can't block this.
-        return null;
+        DataFuture<TransitPlayerProfile> future = plugin.dataFetcher.getProfile(playerName, createIfEmpty);
+        new TaskWaitForPlayerProfile(plugin, playerName, future); // self-schedules
+        return new PlayerProfile(playerName, false);;
     }
 
     // This doesn't have any external usage, and we don't need it anyways.
@@ -70,34 +74,75 @@ public class BungeeDatabaseManager implements DatabaseManager {
         }
 
         LeaderData data = plugin.dataStore.cachedLeaderboard.get(request);
-        if (data != null) {
-            long expires = System.currentTimeMillis() + EXPIRY_TIME;
-            if (data.lastRefresh < expires) {
-                return data.stats;
-            } else {
-                if (Thread.currentThread().equals(BukkitPlugin.serverThread)) {
-                    // Cannot hang server thread, so ask for refesh and just give what we have
-                    plugin.dataFetcher.getLeaderboard(request);
-                    return data.stats;
-                }
-            }
+        long expires = System.currentTimeMillis() + EXPIRY_TIME;
+        if (data != null && data.lastRefresh < expires) {
+            return data.stats;
         } else {
             if (Thread.currentThread().equals(BukkitPlugin.serverThread)) {
-                // Cannot hang server thread, so ask for the data and return null
+                // Cannot hang server thread, so ask for refesh and just give what we have
                 plugin.dataFetcher.getLeaderboard(request);
-                return null;
+                if (data != null) {
+                    return data.stats;
+                } else {
+                    return new ArrayList<PlayerStat>();
+                }
             }
         }
-        LeaderboardFuture future = plugin.dataFetcher.getLeaderboard(request);
 
-        // TODO Auto-generated method stub
-        return null;
+        DataFuture<List<PlayerStat>> future = plugin.dataFetcher.getLeaderboard(request);
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        return new ArrayList<PlayerStat>();
     }
 
     @Override
-    public Map<String, Integer> readRank(String arg0) {
-        // TODO Auto-generated method stub
-        return null;
+    public Map<String, Integer> readRank(String player) {
+        RankData data = plugin.dataStore.cachedRanks.get(player);
+        long expires = System.currentTimeMillis() + EXPIRY_TIME;
+
+        if (data != null && data.lastRefresh < expires) {
+            return transformRank(data.rank);
+        } else {
+            if (Thread.currentThread().equals(BukkitPlugin.serverThread)) {
+                // Cannot hang server thread, so ask for refesh and just give what we have
+                plugin.dataFetcher.getRank(player);
+                if (data != null) {
+                    return transformRank(data.rank);
+                } else {
+                    return new HashMap<String, Integer>();
+                }
+            }
+        }
+
+        DataFuture<TransitPlayerRank> future = plugin.dataFetcher.getRank(player);
+        try {
+            return transformRank(future.get());
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        return new HashMap<String, Integer>();
+    }
+
+    // Hopefully this method will soon be removed and readRank will just return a Map<SkillType, Integer>.
+    private Map<String, Integer> transformRank(TransitPlayerRank rank) {
+        Map<String, Integer> retardedReturn = new HashMap<String, Integer>();
+        Map<SkillType, Integer> values = TransitDataConverter.fromTransit(rank);
+        for (Map.Entry<SkillType, Integer> entry : values.entrySet()) {
+            SkillType skill = entry.getKey();
+            if (skill == null) {
+                retardedReturn.put("ALL", entry.getValue());
+            } else {
+                retardedReturn.put(skill.name(), entry.getValue());
+            }
+        }
+        return retardedReturn;
     }
 
     @Override
