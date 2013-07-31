@@ -121,11 +121,26 @@ public class TransitDataConverter {
         Map<TransitAbilityType, Integer> trskillsDATS = prof.skillsDATS;
 
         for (SkillType sk : SkillType.nonChildSkills()) {
-            skills.put(sk, trskills.get(toTransit(sk)));
-            skillsXp.put(sk, trskillsXp.get(toTransit(sk)));
+            Integer skill = trskills.get(toTransit(sk));
+            if (skill != null) {
+                skills.put(sk, skill);
+            } else {
+                skills.put(sk, 0);
+            }
+            Float xp = trskillsXp.get(toTransit(sk));
+            if (xp != null) {
+                skillsXp.put(sk, xp);
+            } else {
+                skillsXp.put(sk, 0f);
+            }
         }
         for (AbilityType ab : AbilityType.values()) {
-            skillsDATS.put(ab, trskillsDATS.get(toTransit(ab)));
+            Integer dat = trskillsDATS.get(toTransit(ab));
+            if (dat != null) {
+                skillsDATS.put(ab, dat);
+            } else {
+                skillsDATS.put(ab, 0);
+            }
         }
 
         return new PlayerProfile(prof.playerName, skills, skillsXp, skillsDATS, fromTransit(prof.hudType), fromTransit(prof.mobHealthbarType));
