@@ -18,20 +18,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
-
-import com.gmail.nossr50.mcMMO;
-import com.gmail.nossr50.config.Config;
-import com.gmail.nossr50.datatypes.MobHealthbarType;
-import com.gmail.nossr50.datatypes.database.DatabaseUpdateType;
-import com.gmail.nossr50.datatypes.database.PlayerStat;
-import com.gmail.nossr50.datatypes.player.PlayerProfile;
-import com.gmail.nossr50.datatypes.skills.AbilityType;
-import com.gmail.nossr50.datatypes.skills.SkillType;
-import com.gmail.nossr50.datatypes.spout.huds.HudType;
-import com.gmail.nossr50.runnables.database.SQLReconnectTask;
-import com.gmail.nossr50.util.Misc;
+import me.riking.bungeemmo.bungee.BungeePlugin;
+import me.riking.bungeemmo.common.data.LeaderboardRequest;
+import me.riking.bungeemmo.common.data.TransitAbilityType;
+import me.riking.bungeemmo.common.data.TransitHudType;
+import me.riking.bungeemmo.common.data.TransitLeaderboardValue;
+import me.riking.bungeemmo.common.data.TransitMobHealthbarType;
+import me.riking.bungeemmo.common.data.TransitPlayerProfile;
+import me.riking.bungeemmo.common.data.TransitPlayerRank;
+import me.riking.bungeemmo.common.data.TransitSkillType;
 
 public final class SQLDatabaseManager implements DatabaseManager {
     private String connectionString;
@@ -127,7 +122,7 @@ public final class SQLDatabaseManager implements DatabaseManager {
         return success;
     }
 
-    public void saveUser(PlayerProfile profile) {
+    public void saveUser(TransitPlayerProfile profile) {
         checkConnected();
         int userId = readId(profile.getPlayerName());
         if (userId == -1) {
@@ -138,8 +133,8 @@ public final class SQLDatabaseManager implements DatabaseManager {
                 return;
             }
         }
-        MobHealthbarType mobHealthbarType = profile.getMobHealthbarType();
-        HudType hudType = profile.getHudType();
+        TransitMobHealthbarType mobHealthbarType = profile.getMobHealthbarType();
+        TransitHudType hudType = profile.getHudType();
 
         saveLogin(userId, ((int) (System.currentTimeMillis() / Misc.TIME_CONVERSION_FACTOR)));
         saveHuds(userId, (hudType == null ? "STANDARD" : hudType.toString()), (mobHealthbarType == null ? Config.getInstance().getMobHealthbarDefault().toString() : mobHealthbarType.toString()));
@@ -149,32 +144,32 @@ public final class SQLDatabaseManager implements DatabaseManager {
                     + ", herbalism = ?, excavation = ?, swords = ?"
                     + ", axes = ?, blast_mining = ? WHERE user_id = ?",
                 userId,
-                profile.getSkillDATS(AbilityType.SUPER_BREAKER),
-                profile.getSkillDATS(AbilityType.TREE_FELLER),
-                profile.getSkillDATS(AbilityType.BERSERK),
-                profile.getSkillDATS(AbilityType.GREEN_TERRA),
-                profile.getSkillDATS(AbilityType.GIGA_DRILL_BREAKER),
-                profile.getSkillDATS(AbilityType.SERRATED_STRIKES),
-                profile.getSkillDATS(AbilityType.SKULL_SPLITTER),
-                profile.getSkillDATS(AbilityType.BLAST_MINING));
+                profile.getSkillDATS(TransitAbilityType.SUPER_BREAKER),
+                profile.getSkillDATS(TransitAbilityType.TREE_FELLER),
+                profile.getSkillDATS(TransitAbilityType.BERSERK),
+                profile.getSkillDATS(TransitAbilityType.GREEN_TERRA),
+                profile.getSkillDATS(TransitAbilityType.GIGA_DRILL_BREAKER),
+                profile.getSkillDATS(TransitAbilityType.SERRATED_STRIKES),
+                profile.getSkillDATS(TransitAbilityType.SKULL_SPLITTER),
+                profile.getSkillDATS(TransitAbilityType.BLAST_MINING));
         saveIntegers(
                 "UPDATE " + tablePrefix + "skills SET "
                     + " taming = ?, mining = ?, repair = ?, woodcutting = ?"
                     + ", unarmed = ?, herbalism = ?, excavation = ?"
                     + ", archery = ?, swords = ?, axes = ?, acrobatics = ?"
                     + ", fishing = ? WHERE user_id = ?",
-                profile.getSkillLevel(SkillType.TAMING),
-                profile.getSkillLevel(SkillType.MINING),
-                profile.getSkillLevel(SkillType.REPAIR),
-                profile.getSkillLevel(SkillType.WOODCUTTING),
-                profile.getSkillLevel(SkillType.UNARMED),
-                profile.getSkillLevel(SkillType.HERBALISM),
-                profile.getSkillLevel(SkillType.EXCAVATION),
-                profile.getSkillLevel(SkillType.ARCHERY),
-                profile.getSkillLevel(SkillType.SWORDS),
-                profile.getSkillLevel(SkillType.AXES),
-                profile.getSkillLevel(SkillType.ACROBATICS),
-                profile.getSkillLevel(SkillType.FISHING),
+                profile.getSkillLevel(TransitSkillType.TAMING),
+                profile.getSkillLevel(TransitSkillType.MINING),
+                profile.getSkillLevel(TransitSkillType.REPAIR),
+                profile.getSkillLevel(TransitSkillType.WOODCUTTING),
+                profile.getSkillLevel(TransitSkillType.UNARMED),
+                profile.getSkillLevel(TransitSkillType.HERBALISM),
+                profile.getSkillLevel(TransitSkillType.EXCAVATION),
+                profile.getSkillLevel(TransitSkillType.ARCHERY),
+                profile.getSkillLevel(TransitSkillType.SWORDS),
+                profile.getSkillLevel(TransitSkillType.AXES),
+                profile.getSkillLevel(TransitSkillType.ACROBATICS),
+                profile.getSkillLevel(TransitSkillType.FISHING),
                 userId);
         saveIntegers(
                 "UPDATE " + tablePrefix + "experience SET "
@@ -182,23 +177,23 @@ public final class SQLDatabaseManager implements DatabaseManager {
                     + ", unarmed = ?, herbalism = ?, excavation = ?"
                     + ", archery = ?, swords = ?, axes = ?, acrobatics = ?"
                     + ", fishing = ? WHERE user_id = ?",
-                profile.getSkillXpLevel(SkillType.TAMING),
-                profile.getSkillXpLevel(SkillType.MINING),
-                profile.getSkillXpLevel(SkillType.REPAIR),
-                profile.getSkillXpLevel(SkillType.WOODCUTTING),
-                profile.getSkillXpLevel(SkillType.UNARMED),
-                profile.getSkillXpLevel(SkillType.HERBALISM),
-                profile.getSkillXpLevel(SkillType.EXCAVATION),
-                profile.getSkillXpLevel(SkillType.ARCHERY),
-                profile.getSkillXpLevel(SkillType.SWORDS),
-                profile.getSkillXpLevel(SkillType.AXES),
-                profile.getSkillXpLevel(SkillType.ACROBATICS),
-                profile.getSkillXpLevel(SkillType.FISHING),
+                profile.getSkillXpLevel(TransitSkillType.TAMING),
+                profile.getSkillXpLevel(TransitSkillType.MINING),
+                profile.getSkillXpLevel(TransitSkillType.REPAIR),
+                profile.getSkillXpLevel(TransitSkillType.WOODCUTTING),
+                profile.getSkillXpLevel(TransitSkillType.UNARMED),
+                profile.getSkillXpLevel(TransitSkillType.HERBALISM),
+                profile.getSkillXpLevel(TransitSkillType.EXCAVATION),
+                profile.getSkillXpLevel(TransitSkillType.ARCHERY),
+                profile.getSkillXpLevel(TransitSkillType.SWORDS),
+                profile.getSkillXpLevel(TransitSkillType.AXES),
+                profile.getSkillXpLevel(TransitSkillType.ACROBATICS),
+                profile.getSkillXpLevel(TransitSkillType.FISHING),
                 userId);
     }
 
-    public List<PlayerStat> readLeaderboard(String skillName, int pageNumber, int statsPerPage) {
-        List<PlayerStat> stats = new ArrayList<PlayerStat>();
+    public List<TransitLeaderboardValue> readLeaderboard(String skillName, int pageNumber, int statsPerPage) {
+        List<TransitLeaderboardValue> stats = new ArrayList<TransitLeaderboardValue>();
 
         if (checkConnected()) {
             String query = skillName.equalsIgnoreCase("ALL") ? "taming+mining+woodcutting+repair+unarmed+herbalism+excavation+archery+swords+axes+acrobatics+fishing" : skillName;
@@ -218,7 +213,7 @@ public final class SQLDatabaseManager implements DatabaseManager {
                         column.add(resultSet.getString(i));
                     }
 
-                    stats.add(new PlayerStat(column.get(1), Integer.valueOf(column.get(0))));
+                    stats.add(new TransitLeaderboardValue(column.get(1), Integer.valueOf(column.get(0))));
                 }
             }
             catch (SQLException ex) {
@@ -239,14 +234,14 @@ public final class SQLDatabaseManager implements DatabaseManager {
         return stats;
     }
 
-    public Map<String, Integer> readRank(String playerName) {
-        Map<String, Integer> skills = new HashMap<String, Integer>();
+    public TransitPlayerRank readRank(String playerName) {
+        Map<TransitSkillType, Integer> skills = new HashMap<TransitSkillType, Integer>();
 
         if (checkConnected()) {
             ResultSet resultSet;
 
             try {
-                for (SkillType skillType : SkillType.nonChildSkills()) {
+                for (TransitSkillType skillType : TransitSkillType.nonChildSkills()) {
                     String skillName = skillType.name().toLowerCase();
                     String sql = "SELECT COUNT(*) AS rank FROM " + tablePrefix + "users JOIN " + tablePrefix + "skills ON user_id = id WHERE " + skillName + " > 0 " +
                                  "AND " + skillName + " > (SELECT " + skillName + " FROM " + tablePrefix + "users JOIN " + tablePrefix + "skills ON user_id = id " +
@@ -351,7 +346,7 @@ public final class SQLDatabaseManager implements DatabaseManager {
         }
     }
 
-    public PlayerProfile loadPlayerProfile(String playerName, boolean create) {
+    public TransitPlayerProfile loadPlayerProfile(String playerName, boolean create) {
         checkConnected();
         PreparedStatement statement = null;
 
@@ -374,7 +369,7 @@ public final class SQLDatabaseManager implements DatabaseManager {
 
             if (result.next()) {
                 try {
-                    PlayerProfile ret = loadFromResult(playerName, result);
+                    TransitPlayerProfile ret = loadFromResult(playerName, result);
                     result.close();
                     return ret;
                 }
@@ -408,7 +403,7 @@ public final class SQLDatabaseManager implements DatabaseManager {
                 newUser(playerName);
             }
 
-            return new PlayerProfile(playerName, create);
+            return new TransitPlayerProfile(playerName, create);
         }
         // There is such a user
         writeMissingRows(id);
@@ -1152,7 +1147,7 @@ public final class SQLDatabaseManager implements DatabaseManager {
         }
     }
 
-    private PlayerProfile loadFromResult(String playerName, ResultSet result) throws SQLException {
+    private TransitPlayerProfile loadFromResult(String playerName, ResultSet result) throws SQLException {
         Map<SkillType, Integer>   skills     = new HashMap<SkillType, Integer>();   // Skill & Level
         Map<SkillType, Float>     skillsXp   = new HashMap<SkillType, Float>();     // Skill & XP
         Map<AbilityType, Integer> skillsDATS = new HashMap<AbilityType, Integer>(); // Ability & Cooldown
