@@ -1,15 +1,14 @@
-package me.riking.bungeemmo.bungee;
+package me.riking.bungeemmo.bungee.transclude;
 
 import java.util.List;
 import java.util.Map;
-
-import me.riking.bungeemmo.common.ObjPlayerStat;
 
 import com.gmail.nossr50.config.Config;
 import com.gmail.nossr50.datatypes.database.PlayerStat;
 import com.gmail.nossr50.datatypes.player.PlayerProfile;
 
 public interface DatabaseManager {
+    // One month in milliseconds
     public final long PURGE_TIME = 2630000000L * Config.getInstance().getOldUsersCutoff();
 
     /**
@@ -45,7 +44,7 @@ public interface DatabaseManager {
     * @param statsPerPage The number of stats per page
     * @return the requested leaderboard information
     */
-    public List<ObjPlayerStat> readLeaderboard(String skillName, int pageNumber, int statsPerPage);
+    public List<PlayerStat> readLeaderboard(String skillName, int pageNumber, int statsPerPage);
 
     /**
      * Retrieve rank info.
@@ -67,10 +66,11 @@ public interface DatabaseManager {
      *
      * @param playerName The name of the player to load from the database
      * @param createNew Whether to create a new record if the player is not
-     *            found
+     *          found
      * @return The player's data, or an unloaded PlayerProfile if not found
+     *          and createNew is false
      */
-    public PlayerProfile loadPlayerData(String playerName, boolean createNew);
+    public PlayerProfile loadPlayerProfile(String playerName, boolean createNew);
 
     /**
      * Get all users currently stored in the database.
