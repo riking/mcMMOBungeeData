@@ -6,14 +6,7 @@ import java.util.logging.Level;
 
 import me.riking.bungeemmo.common.data.TransitLeaderboardValue;
 import me.riking.bungeemmo.common.data.TransitPlayerProfile;
-import me.riking.bungeemmo.common.messaging.AnnounceMessage;
-import me.riking.bungeemmo.common.messaging.BadVersionMessage;
-import me.riking.bungeemmo.common.messaging.LeaderboardPushMessage;
-import me.riking.bungeemmo.common.messaging.Message;
-import me.riking.bungeemmo.common.messaging.PluginMessageUtil;
-import me.riking.bungeemmo.common.messaging.ProfilePushMessage;
-import me.riking.bungeemmo.common.messaging.RankPushMessage;
-import me.riking.bungeemmo.common.messaging.WelcomeMessage;
+import me.riking.bungeemmo.common.messaging.*;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -42,12 +35,14 @@ public class McmmoMessageListener implements PluginMessageListener {
             e.printStackTrace();
             return;
         }
+
         if (m instanceof WelcomeMessage) {
             WelcomeMessage me = (WelcomeMessage) m;
             PluginMessageUtil.serverName = me.serverName;
             plugin.connMan.otherServers.addAll(me.otherServers);
             // We're up.
             plugin.connMan.established();
+
         } else if (m instanceof BadVersionMessage) {
             BadVersionMessage me = (BadVersionMessage) m;
             // Version mismatch, so we can't do shit.
@@ -59,14 +54,16 @@ public class McmmoMessageListener implements PluginMessageListener {
             for (Player p : plugin.getServer().getOnlinePlayers()) {
                 p.kickPlayer("[" + plugin.shortName + "] Please update BungeeMMO to " + newVersion);
             }
-
             plugin.getServer().shutdown();
+
         } else if (m instanceof AnnounceMessage) {
             AnnounceMessage me = (AnnounceMessage) m;
             plugin.connMan.otherServers.add(me.newServerName);
+
         } else if (m instanceof ProfilePushMessage) {
             ProfilePushMessage me = (ProfilePushMessage) m;
             plugin.dataFetcher.fulfill(me.playerName, me.profile);
+
         } else if (m instanceof LeaderboardPushMessage) {
             LeaderboardPushMessage me = (LeaderboardPushMessage) m;
             ArrayList<TransitLeaderboardValue> transit = me.values;
@@ -74,10 +71,30 @@ public class McmmoMessageListener implements PluginMessageListener {
             for (TransitLeaderboardValue tr : transit) {
                 mcmmo.add(new PlayerStat(tr.name, tr.val));
             }
-            plugin.dataFetcher.fulfill(me.getRequest(), );
+            plugin.dataFetcher.fulfill(me.getRequest(), mcmmo);
+
         } else if (m instanceof RankPushMessage) {
             RankPushMessage me = (RankPushMessage) m;
-            plugin.dataFetcher.fulfill(me);
+            plugin.dataFetcher.fulfill(me.playerName, me.rank);
+
+        } else if (m instanceof ProfilePullMessage) {
+            ProfilePullMessage me = (ProfilePullMessage) m;
+            PlayerProfile prof = plugin.dataStore.cachedProfiles.get(me.playerName);
+            // Send even if null
+            plugin.connMan.addPacket(new ProfilePushMessage(me.playerName, TransitDataConverter.toTransit(prof)));
+
+        } else if (m instanceof LeaderboardPullMessage) {
+            wrongDirection("LeaderboardPullMessage");
+        } else if (m instanceof RankPullMessage) {
+            wrongDirection("RankPullMessage");
+        } else if (m instanceof StartupMessage) {
+            wrongDirection("StartupMessage");
+        } else if (m instanceof ServerStopMessage) {
+            wrongDirection("ServerStopMessage");
         }
+    }
+
+    private void wrongDirection(String s) {
+        plugin.getLogger().warning("Ignoring wrong-direction message " + s);
     }
 }
