@@ -33,12 +33,12 @@ public class TransitDataConverter {
     }
 
     public static TransitHudType toTransit(HudType mm) {
-        if (mm == null) return null;
+        if (mm == null) return TransitHudType.NULL;
         return TransitHudType.valueOf(mm.name());
     }
 
     public static TransitMobHealthbarType toTransit(MobHealthbarType mm) {
-        if (mm == null) return null;
+        if (mm == null) return TransitMobHealthbarType.NULL;
         return TransitMobHealthbarType.valueOf(mm.name());
     }
 
