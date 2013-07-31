@@ -3,13 +3,14 @@ package me.riking.bungeemmo.bungee.transclude;
 import java.util.List;
 import java.util.Map;
 
-import com.gmail.nossr50.config.Config;
-import com.gmail.nossr50.datatypes.database.PlayerStat;
-import com.gmail.nossr50.datatypes.player.PlayerProfile;
+import me.riking.bungeemmo.common.data.LeaderboardRequest;
+import me.riking.bungeemmo.common.data.TransitLeaderboardValue;
+import me.riking.bungeemmo.common.data.TransitPlayerProfile;
+import me.riking.bungeemmo.common.data.TransitPlayerRank;
 
 public interface DatabaseManager {
     // One month in milliseconds
-    public final long PURGE_TIME = 2630000000L * Config.getInstance().getOldUsersCutoff();
+    public final long PURGE_TIME = 2630000000L * 3; // TODO Config.getInstance().getOldUsersCutoff();
 
     /**
      * Purge users with 0 power level from the database.
@@ -34,7 +35,7 @@ public interface DatabaseManager {
      *
      * @param profile The profile of the player to save
      */
-    public void saveUser(PlayerProfile profile);
+    public void saveUser(TransitPlayerProfile profile);
 
     /**
     * Retrieve leaderboard info.
@@ -44,7 +45,7 @@ public interface DatabaseManager {
     * @param statsPerPage The number of stats per page
     * @return the requested leaderboard information
     */
-    public List<PlayerStat> readLeaderboard(String skillName, int pageNumber, int statsPerPage);
+    public List<TransitLeaderboardValue> readLeaderboard(LeaderboardRequest request);
 
     /**
      * Retrieve rank info.
@@ -52,7 +53,7 @@ public interface DatabaseManager {
      * @param playerName The name of the user to retrieve the rankings for
      * @return the requested rank information
      */
-    public Map<String, Integer> readRank(String playerName);
+    public TransitPlayerRank readRank(String playerName);
 
     /**
      * Add a new user to the database.
@@ -70,7 +71,7 @@ public interface DatabaseManager {
      * @return The player's data, or an unloaded PlayerProfile if not found
      *          and createNew is false
      */
-    public PlayerProfile loadPlayerProfile(String playerName, boolean createNew);
+    public TransitPlayerProfile loadPlayerProfile(String playerName, boolean createNew);
 
     /**
      * Get all users currently stored in the database.
@@ -78,12 +79,4 @@ public interface DatabaseManager {
      * @return list of playernames
      */
     public List<String> getStoredUsers();
-
-    /**
-     * Convert all users from this database to the provided database using
-     * {@link #saveUser(PlayerProfile)}.
-     *
-     * @param the DatabaseManager to save to
-     */
-    public void convertUsers(DatabaseManager destination);
 }
