@@ -55,7 +55,7 @@ public class BungeeDatabaseManager implements DatabaseManager {
         }
         DataFuture<TransitPlayerProfile> future = plugin.dataFetcher.getProfile(playerName, createIfEmpty);
         new TaskWaitForPlayerProfile(plugin, playerName, future); // self-schedules
-        return new PlayerProfile(playerName, false);;
+        return new PlayerProfile(playerName, false);
     }
 
     // This doesn't have any external usage, and we don't need it anyways.
