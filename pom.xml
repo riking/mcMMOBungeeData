@@ -92,5 +92,9 @@
       <id>md_5 Repo</id>
       <url>http://repo.md-5.net/content/groups/public/</url>
     </repository>
+    <repository>
+      <id>mcmmo repo</id>
+      <url>http://repo.mcmmo.org/</url>
+    </repository>
   </repositories>
 </project>
