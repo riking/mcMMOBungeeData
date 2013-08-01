@@ -1,7 +1,6 @@
 package me.riking.bungeemmo.bungee.transclude;
 
 import java.util.List;
-import java.util.Map;
 
 import me.riking.bungeemmo.common.data.LeaderboardRequest;
 import me.riking.bungeemmo.common.data.TransitLeaderboardValue;
@@ -11,6 +10,9 @@ import me.riking.bungeemmo.common.data.TransitPlayerRank;
 public interface DatabaseManager {
     // One month in milliseconds
     public final long PURGE_TIME = 2630000000L * 3; // TODO Config.getInstance().getOldUsersCutoff();
+
+    // Milliseconds in a second
+    public final long MILLIS_CONVERSION_FACTOR = 1000;
 
     /**
      * Purge users with 0 power level from the database.

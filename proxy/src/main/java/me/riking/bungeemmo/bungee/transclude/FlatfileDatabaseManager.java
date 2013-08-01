@@ -13,8 +13,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 
 import me.riking.bungeemmo.bungee.BungeePlugin;
 import me.riking.bungeemmo.common.data.LeaderboardRequest;
@@ -26,18 +24,20 @@ import me.riking.bungeemmo.common.data.TransitPlayerProfile;
 import me.riking.bungeemmo.common.data.TransitPlayerRank;
 import me.riking.bungeemmo.common.data.TransitSkillType;
 
+
 public final class FlatfileDatabaseManager implements DatabaseManager {
-    private final BungeePlugin plugin;
-    private final HashMap<TransitSkillType, List<TransitLeaderboardValue>> skillDataHash = new HashMap();
+    private final HashMap<TransitSkillType, List<TransitLeaderboardValue>> playerStatHash = new HashMap<TransitSkillType, List<TransitLeaderboardValue>>();
+    private final List<TransitLeaderboardValue> powerLevels = new ArrayList<TransitLeaderboardValue>();
     private long lastUpdate = 0;
 
+    private final BungeePlugin plugin;
     private final long UPDATE_WAIT_TIME = 600000L; // 10 minutes
     private final File usersFile;
     private static final Object fileWritingLock = new Object();
 
     public FlatfileDatabaseManager(BungeePlugin plugin) {
         this.plugin = plugin;
-        usersFile = plugin.getFlatfileLocation();
+        usersFile = new File(plugin.getUsersFilePath());
         checkStructure();
         updateLeaderboards();
     }
@@ -45,31 +45,11 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
     public void purgePowerlessUsers() {
         int purgedUsers = 0;
 
-        mcMMO.p.getLogger().info("Purging powerless users...");
+        plugin.getLogger().info("Purging powerless users...");
 
         BufferedReader in = null;
         FileWriter out = null;
-        String usersFilePath = mcMMO.getUsersFilePath();
-
-        List<String> onlinePlayers = Collections.EMPTY_LIST;
-        try {
-             onlinePlayers = Bukkit.getScheduler().callSyncMethod(mcMMO.p, new Callable<List<String>>() {
-                @Override
-                public List<String> call() {
-                    Player[] players = Bukkit.getOnlinePlayers();
-                    if (players.length == 0) {
-                        return null;
-                    }
-                    ArrayList<String> names = new ArrayList<String>();
-                    for (Player p : players) {
-                        names.add(p.getName());
-                    }
-                    return names;
-                }
-            }).get();
-        } catch (InterruptedException e1) {
-        } catch (ExecutionException e1) {
-        }
+        String usersFilePath = plugin.getUsersFilePath();
 
         // This code is O(n) instead of O(n²)
         synchronized (fileWritingLock) {
@@ -80,11 +60,6 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
                 while ((line = in.readLine()) != null) {
                     String[] character = line.split(":");
-                    if (onlinePlayers.contains(character[0])) {
-                        // Skip
-                        writer.append(line).append("\r\n");
-                        continue;
-                    }
                     Map<TransitSkillType, Integer> skills = getSkillMapFromLine(character);
 
                     boolean powerless = true;
@@ -101,7 +76,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                     }
                     else {
                         purgedUsers++;
-                        Misc.profileCleanup(character[0]);
+                        //Misc.profileCleanup(character[0]);
                     }
                 }
 
@@ -110,7 +85,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 out.write(writer.toString());
             }
             catch (IOException e) {
-                mcMMO.p.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
+                plugin.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
             }
             finally {
                 tryClose(in);
@@ -118,19 +93,19 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
             }
         }
 
-        mcMMO.p.getLogger().info("Purged " + purgedUsers + " users from the database.");
+        plugin.getLogger().info("Purged " + purgedUsers + " users from the database.");
     }
 
     public void purgeOldUsers() {
         int removedPlayers = 0;
         long currentTime = System.currentTimeMillis();
 
-        mcMMO.p.getLogger().info("Purging old users...");
+        plugin.getLogger().info("Purging old users...");
 
 
         BufferedReader in = null;
         FileWriter out = null;
-        String usersFilePath = mcMMO.getUsersFilePath();
+        String usersFilePath = plugin.getUsersFilePath();
 
         // This code is O(n) instead of O(n²)
         synchronized (fileWritingLock) {
@@ -140,20 +115,35 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 String line = "";
 
                 while ((line = in.readLine()) != null) {
+                    // Length checks depend on last character being ':'
+                    if (line.charAt(line.length() - 1) != ':') {
+                        line = line + ":";
+                    }
                     String[] character = line.split(":");
                     String name = character[0];
-                    OfflinePlayer player = Bukkit.getOfflinePlayer(name);
-                    boolean old = true;
-                    if (player != null) {
-                        old = (currentTime - player.getLastPlayed()) > PURGE_TIME;
+                    long lastPlayed = StringUtils.getLong(character[37]) * Misc.TIME_CONVERSION_FACTOR;
+                    boolean rewrite = false;
+
+                    if (lastPlayed == 0) {
+                        OfflinePlayer player = Bukkit.getOfflinePlayer(name);
+                        lastPlayed = player.getLastPlayed();
+                        rewrite = true;
                     }
 
-                    if (!old) {
-                        writer.append(line).append("\r\n");
-                    }
-                    else {
+                    if (currentTime - lastPlayed > PURGE_TIME) {
                         removedPlayers++;
                         Misc.profileCleanup(name);
+                    }
+                    else {
+                        if (rewrite) {
+                            // Rewrite their data with a valid time
+                            character[37] = Long.toString(lastPlayed);
+                            String newLine = org.apache.commons.lang.StringUtils.join(character, ":");
+                            writer.append(newLine).append("\r\n");
+                        }
+                        else {
+                            writer.append(line).append("\r\n");
+                        }
                     }
                 }
 
@@ -162,7 +152,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 out.write(writer.toString());
             }
             catch (IOException e) {
-                mcMMO.p.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
+                plugin.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
             }
             finally {
                 tryClose(in);
@@ -170,7 +160,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
             }
         }
 
-        mcMMO.p.getLogger().info("Purged " + removedPlayers + " users from the database.");
+        plugin.getLogger().info("Purged " + removedPlayers + " users from the database.");
     }
 
     public boolean removeUser(String playerName) {
@@ -178,7 +168,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
         BufferedReader in = null;
         FileWriter out = null;
-        String usersFilePath = mcMMO.getUsersFilePath();
+        String usersFilePath = plugin.getUsersFilePath();
 
         synchronized (fileWritingLock) {
             try {
@@ -189,7 +179,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 while ((line = in.readLine()) != null) {
                     // Write out the same file but when we get to the player we want to remove, we skip his line.
                     if (!worked && line.split(":")[0].equalsIgnoreCase(playerName)) {
-                        mcMMO.p.getLogger().info("User found, removing...");
+                        plugin.getLogger().info("User found, removing...");
                         worked = true;
                         continue; // Skip the player
                     }
@@ -201,7 +191,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 out.write(writer.toString());
             }
             catch (Exception e) {
-                mcMMO.p.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
+                plugin.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
             }
             finally {
                 tryClose(in);
@@ -219,7 +209,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
         BufferedReader in = null;
         FileWriter out = null;
-        String usersFilePath = mcMMO.getUsersFilePath();
+        String usersFilePath = plugin.getUsersFilePath();
 
         synchronized (fileWritingLock) {
             try {
@@ -269,14 +259,14 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                         writer.append((int) profile.getSkillDATS(TransitAbilityType.SERRATED_STRIKES)).append(":");
                         writer.append((int) profile.getSkillDATS(TransitAbilityType.SKULL_SPLITTER)).append(":");
                         writer.append((int) profile.getSkillDATS(TransitAbilityType.SUPER_BREAKER)).append(":");
-                        TransitHudType hudType = profile.getHudType();
-                        writer.append(hudType == null ? "STANDARD" : hudType.toString()).append(":");
+                        TransitHudType hudType = profile.hudType;
+                        writer.append(hudType == null ? "NULL" : hudType.toString()).append(":");
                         writer.append(profile.getSkillLevel(TransitSkillType.FISHING)).append(":");
                         writer.append(profile.getSkillXpLevel(TransitSkillType.FISHING)).append(":");
                         writer.append((int) profile.getSkillDATS(TransitAbilityType.BLAST_MINING)).append(":");
-                        writer.append(System.currentTimeMillis() / Misc.TIME_CONVERSION_FACTOR).append(":");
-                        TransitMobHealthbarType mobHealthbarType = profile.getMobHealthbarType();
-                        writer.append(mobHealthbarType == null ? Config.getInstance().getMobHealthbarDefault().toString() : mobHealthbarType.toString()).append(":");
+                        writer.append(System.currentTimeMillis() / MILLIS_CONVERSION_FACTOR).append(":");
+                        TransitMobHealthbarType mobHealthbarType = profile.mobHealthbarType;
+                        writer.append(mobHealthbarType == null ? "NULL" : mobHealthbarType.toString()).append(":");
                         writer.append("\r\n");
                     }
                 }
@@ -297,10 +287,10 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
     public List<TransitLeaderboardValue> readLeaderboard(LeaderboardRequest request) {
         updateLeaderboards();
-        List<TransitLeaderboardValue> statsList = skillDataHash.get(request.skillType);
-        int fromIndex = (Math.max(request.page, 1) - 1) * request.perPage;
+        List<TransitLeaderboardValue> statsList = skillName.equalsIgnoreCase("all") ? powerLevels : playerStatHash.get(TransitSkillType.getSkill(skillName));
+        int fromIndex = (Math.max(pageNumber, 1) - 1) * statsPerPage;
 
-        return statsList.subList(Math.min(fromIndex, statsList.size()), Math.min(fromIndex + request.perPage, statsList.size()));
+        return statsList.subList(Math.min(fromIndex, statsList.size()), Math.min(fromIndex + statsPerPage, statsList.size()));
     }
 
     public TransitPlayerRank readRank(String playerName) {
@@ -322,7 +312,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
         synchronized (fileWritingLock) {
             try {
                 // Open the file to write the player
-                out = new BufferedWriter(new FileWriter(mcMMO.getUsersFilePath(), true));
+                out = new BufferedWriter(new FileWriter(plugin.getUsersFilePath(), true));
 
                 // Add the player to the end
                 out.append(playerName).append(":");
@@ -362,8 +352,8 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 out.append("0:"); // Fishing
                 out.append("0:"); // FishingXp
                 out.append("0:"); // Blast Mining
-                out.append(String.valueOf(System.currentTimeMillis() / Misc.TIME_CONVERSION_FACTOR)).append(":"); // LastLogin
-                out.append(Config.getInstance().getMobHealthbarDefault().toString()).append(":"); // Mob Healthbar HUD
+                out.append(String.valueOf(System.currentTimeMillis() / MILLIS_CONVERSION_FACTOR)).append(":"); // LastLogin
+                out.append("NULL").append(":"); // Mob Healthbar HUD
 
                 // Add more in the same format as the line above
 
@@ -380,7 +370,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
     public TransitPlayerProfile loadPlayerProfile(String playerName, boolean create) {
         BufferedReader in = null;
-        String usersFilePath = mcMMO.getUsersFilePath();
+        String usersFilePath = plugin.getUsersFilePath();
 
         synchronized (fileWritingLock) {
             try {
@@ -411,14 +401,17 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
         if (create) {
             newUser(playerName);
-            return new TransitPlayerProfile(playerName, true);
+            TransitPlayerProfile profile = new TransitPlayerProfile();
+            profile.playerName = playerName;
+            return profile;
         }
-        return new TransitPlayerProfile(playerName);
+        // Special value - does not exist
+        return null;
     }
 
     public void convertUsers(DatabaseManager destination) {
         BufferedReader in = null;
-        String usersFilePath = mcMMO.getUsersFilePath();
+        String usersFilePath = plugin.getUsersFilePath();
 
         synchronized (fileWritingLock) {
             try {
@@ -454,7 +447,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
     public List<String> getStoredUsers() {
         ArrayList<String> users = new ArrayList<String>();
         BufferedReader in = null;
-        String usersFilePath = mcMMO.getUsersFilePath();
+        String usersFilePath = plugin.getUsersFilePath();
 
         synchronized (fileWritingLock) {
             try {
@@ -486,8 +479,9 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
             return;
         }
 
-        String usersFilePath = mcMMO.getUsersFilePath();
+        String usersFilePath = plugin.getUsersFilePath();
         lastUpdate = System.currentTimeMillis(); // Log when the last update was run
+        powerLevels.clear(); // Clear old values from the power levels
 
         // Initialize lists
         List<TransitLeaderboardValue> mining = new ArrayList<TransitLeaderboardValue>();
@@ -542,7 +536,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 }
             }
             catch (Exception e) {
-                mcMMO.p.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
+                plugin.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
             }
             finally {
                 tryClose(in);
@@ -586,7 +580,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
         if (usersFile.exists()) {
             BufferedReader in = null;
             FileWriter out = null;
-            String usersFilePath = mcMMO.getUsersFilePath();
+            String usersFilePath = plugin.getUsersFilePath();
 
             synchronized (fileWritingLock) {
                 try {
@@ -598,10 +592,58 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                         String[] character = line.split(":");
 
                         // If they're valid, rewrite them to the file.
-                        if (character.length >= 37) {
+                        if (character.length > 38) {
                             writer.append(line).append("\r\n");
+                        } else if (character.length < 33) {
+                            // Before Version 1.0 - Drop
+                            plugin.getLogger().warning("Dropping malformed or before version 1.0 line from database - " + line);
                         } else {
-                            // Placeholder, repair row if needed (I.E. when new skills are added and such)
+                            String oldVersion = null;
+                            StringBuilder newLine = new StringBuilder(line);
+                            boolean announce = false;
+                            if (character.length <= 33) {
+                                // Introduction of HUDType
+                                // Version 1.1.06
+                                // commit 78f79213cdd7190cd11ae54526f3b4ea42078e8a
+                                newLine.append("STANDARD").append(":");
+                                oldVersion = "1.1.06";
+                            }
+                            if (character.length <= 35) {
+                                // Introduction of Fishing
+                                // Version 1.2.00
+                                // commit a814b57311bc7734661109f0e77fc8bab3a0bd29
+                                newLine.append(0).append(":");
+                                newLine.append(0).append(":");
+                                if (oldVersion == null) oldVersion = "1.2.00";
+                            }
+                            if (character.length <= 36) {
+                                // Introduction of Blast Mining cooldowns
+                                // Version 1.3.00-dev
+                                // commit fadbaf429d6b4764b8f1ad0efaa524a090e82ef5
+                                newLine.append((int) 0).append(":");
+                                if (oldVersion == null) oldVersion = "1.3.00";
+                            }
+                            if (character.length <= 37) {
+                                // Making old-purge work with flatfile
+                                // Version 1.4.00-dev
+                                // commmit 3f6c07ba6aaf44e388cc3b882cac3d8f51d0ac28
+                                String playerName = character[0];
+                                long time = System.currentTimeMillis();
+                                newLine.append(time / MILLIS_CONVERSION_FACTOR).append(":");
+                                announce = true; // TODO move this down
+                                if (oldVersion == null) oldVersion = "1.4.00";
+                            }
+                            if (character.length <= 38) {
+                                // Addition of mob healthbars
+                                // Version 1.4.06
+                                // commit da29185b7dc7e0d992754bba555576d48fa08aa6
+                                newLine.append("NULL").append(":");
+                                if (oldVersion == null) oldVersion = "1.4.06";
+                            }
+                            if (announce) {
+                                plugin.getLogger().info("Updating database line for player " + character[0] + " from before version " + oldVersion);
+                            }
+                            writer.append(newLine).append("\r\n");
                         }
                     }
 
@@ -610,7 +652,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                     out.write(writer.toString());
                 }
                 catch (IOException e) {
-                    mcMMO.p.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
+                    plugin.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
                 }
                 finally {
                     tryClose(in);
@@ -623,8 +665,8 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
         usersFile.getParentFile().mkdir();
 
         try {
-            mcMMO.p.debug("Creating mcmmo.users file...");
-            new File(mcMMO.getUsersFilePath()).createNewFile();
+            plugin.getLogger().info("Creating mcmmo.users file...");
+            new File(plugin.getUsersFilePath()).createNewFile();
         }
         catch (IOException e) {
             e.printStackTrace();
@@ -671,11 +713,10 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
     }
 
     private TransitPlayerProfile loadFromLine(String[] character) throws Exception {
+        TransitPlayerProfile profile = new TransitPlayerProfile();
         Map<TransitSkillType, Integer>   skills     = getSkillMapFromLine(character);      // Skill levels
         Map<TransitSkillType, Float>     skillsXp   = new HashMap<TransitSkillType, Float>();     // Skill & XP
         Map<TransitAbilityType, Integer> skillsDATS = new HashMap<TransitAbilityType, Integer>(); // Ability & Cooldown
-        HudType hudType;
-        MobHealthbarType mobHealthbarType;
 
         // TODO on updates, put new values in a try{} ?
 
@@ -706,20 +747,24 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
         skillsDATS.put(TransitAbilityType.BLAST_MINING, Integer.valueOf(character[36]));
 
         try {
-            hudType = TransitHudType.valueOf(character[33]);
+            profile.hudType = TransitHudType.valueOf(character[33]);
         }
         catch (Exception e) {
-            hudType = TransitHudType.NULL; // Shouldn't happen unless database is being tampered with
+            profile.hudType = TransitHudType.NULL; // Shouldn't happen unless database is being tampered with
         }
 
         try {
-            mobHealthbarType = TransitMobHealthbarType.valueOf(character[38]);
+            profile.mobHealthbarType = TransitMobHealthbarType.valueOf(character[38]);
         }
         catch (Exception e) {
-            mobHealthbarType = TransitMobHealthbarType.NULL;
+            profile.mobHealthbarType = TransitMobHealthbarType.NULL;
         }
+        profile.playerName = character[0];
+        profile.skills = skills;
+        profile.skillsXp = skillsXp;
+        profile.skillsDATS = skillsDATS;
 
-        return new TransitMobHealthbarTypePlayerProfile(character[0], skills, skillsXp, skillsDATS, hudType, mobHealthbarType);
+        return profile;
     }
 
     private Map<TransitSkillType, Integer> getSkillMapFromLine(String[] character) {
