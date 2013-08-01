@@ -19,6 +19,7 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 
 import me.riking.bungeemmo.bungee.BungeePlugin;
+import me.riking.bungeemmo.bungee.Config;
 import me.riking.bungeemmo.common.data.LeaderboardRequest;
 import me.riking.bungeemmo.common.data.TransitAbilityType;
 import me.riking.bungeemmo.common.data.TransitHudType;
@@ -29,6 +30,7 @@ import me.riking.bungeemmo.common.data.TransitPlayerRank;
 import me.riking.bungeemmo.common.data.TransitSkillType;
 
 public final class SQLDatabaseManager implements DatabaseManager {
+    private BungeePlugin plugin;
     private String connectionString;
     private String tablePrefix = Config.getInstance().getMySQLTablePrefix();
     private Connection connection = null;
@@ -51,7 +53,8 @@ public final class SQLDatabaseManager implements DatabaseManager {
     // How many connection attempts have failed
     private int reconnectAttempt = 0;
 
-    protected SQLDatabaseManager() {
+    public SQLDatabaseManager(BungeePlugin plugin, Config config) {
+
         checkConnected();
         checkStructure();
     }

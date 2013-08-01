@@ -9,7 +9,7 @@ import org.junit.Test;
 
 public class WriteMessageTest {
     @BeforeClass
-    public void setupGlobal() {
+    public static void setupGlobal() {
         PluginMessageUtil.serverName = "Foo";
     }
 
