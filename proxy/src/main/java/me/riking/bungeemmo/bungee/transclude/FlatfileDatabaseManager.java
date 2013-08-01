@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang.StringUtils;
+
 import me.riking.bungeemmo.bungee.BungeePlugin;
 import me.riking.bungeemmo.common.data.LeaderboardRequest;
 import me.riking.bungeemmo.common.data.TransitAbilityType;
@@ -35,9 +37,9 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
     private final File usersFile;
     private static final Object fileWritingLock = new Object();
 
-    public FlatfileDatabaseManager(BungeePlugin plugin) {
+    public FlatfileDatabaseManager(BungeePlugin plugin, File file) {
         this.plugin = plugin;
-        usersFile = new File(plugin.getUsersFilePath());
+        usersFile = file;
         checkStructure();
         updateLeaderboards();
     }
@@ -49,12 +51,11 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
         BufferedReader in = null;
         FileWriter out = null;
-        String usersFilePath = plugin.getUsersFilePath();
 
         // This code is O(n) instead of O(n²)
         synchronized (fileWritingLock) {
             try {
-                in = new BufferedReader(new FileReader(usersFilePath));
+                in = new BufferedReader(new FileReader(usersFile));
                 StringBuilder writer = new StringBuilder();
                 String line = "";
 
@@ -81,11 +82,11 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 }
 
                 // Write the new file
-                out = new FileWriter(usersFilePath);
+                out = new FileWriter(usersFile);
                 out.write(writer.toString());
             }
             catch (IOException e) {
-                plugin.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
+                plugin.getLogger().severe("Exception while reading " + usersFile + " (Are you sure you formatted it correctly?)" + e.toString());
             }
             finally {
                 tryClose(in);
@@ -105,12 +106,11 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
         BufferedReader in = null;
         FileWriter out = null;
-        String usersFilePath = plugin.getUsersFilePath();
 
         // This code is O(n) instead of O(n²)
         synchronized (fileWritingLock) {
             try {
-                in = new BufferedReader(new FileReader(usersFilePath));
+                in = new BufferedReader(new FileReader(usersFile));
                 StringBuilder writer = new StringBuilder();
                 String line = "";
 
@@ -121,18 +121,17 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                     }
                     String[] character = line.split(":");
                     String name = character[0];
-                    long lastPlayed = StringUtils.getLong(character[37]) * Misc.TIME_CONVERSION_FACTOR;
+                    long lastPlayed;
                     boolean rewrite = false;
-
-                    if (lastPlayed == 0) {
-                        OfflinePlayer player = Bukkit.getOfflinePlayer(name);
-                        lastPlayed = player.getLastPlayed();
+                    try {
+                        lastPlayed = Long.parseLong(character[37]) * MILLIS_CONVERSION_FACTOR;
+                    } catch (NumberFormatException e) {
                         rewrite = true;
+                        lastPlayed = System.currentTimeMillis();
                     }
 
                     if (currentTime - lastPlayed > PURGE_TIME) {
                         removedPlayers++;
-                        Misc.profileCleanup(name);
                     }
                     else {
                         if (rewrite) {
@@ -148,11 +147,11 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 }
 
                 // Write the new file
-                out = new FileWriter(usersFilePath);
+                out = new FileWriter(usersFile);
                 out.write(writer.toString());
             }
             catch (IOException e) {
-                plugin.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
+                plugin.getLogger().severe("Exception while reading " + usersFile + " (Are you sure you formatted it correctly?)" + e.toString());
             }
             finally {
                 tryClose(in);
@@ -168,11 +167,10 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
         BufferedReader in = null;
         FileWriter out = null;
-        String usersFilePath = plugin.getUsersFilePath();
 
         synchronized (fileWritingLock) {
             try {
-                in = new BufferedReader(new FileReader(usersFilePath));
+                in = new BufferedReader(new FileReader(usersFile));
                 StringBuilder writer = new StringBuilder();
                 String line = "";
 
@@ -187,11 +185,11 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                     writer.append(line).append("\r\n");
                 }
 
-                out = new FileWriter(usersFilePath); // Write out the new file
+                out = new FileWriter(usersFile); // Write out the new file
                 out.write(writer.toString());
             }
             catch (Exception e) {
-                plugin.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
+                plugin.getLogger().severe("Exception while reading " + usersFile + " (Are you sure you formatted it correctly?)" + e.toString());
             }
             finally {
                 tryClose(in);
@@ -199,22 +197,19 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
             }
         }
 
-        Misc.profileCleanup(playerName);
-
         return worked;
     }
 
     public void saveUser(TransitPlayerProfile profile) {
-        String playerName = profile.getPlayerName();
+        String playerName = profile.playerName;
 
         BufferedReader in = null;
         FileWriter out = null;
-        String usersFilePath = plugin.getUsersFilePath();
 
         synchronized (fileWritingLock) {
             try {
                 // Open the file
-                in = new BufferedReader(new FileReader(usersFilePath));
+                in = new BufferedReader(new FileReader(usersFile));
                 StringBuilder writer = new StringBuilder();
                 String line;
 
@@ -227,43 +222,43 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                     else {
                         // Otherwise write the new player information
                         writer.append(playerName).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.MINING)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.MINING)).append(":");
                         writer.append(":");
                         writer.append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.MINING)).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.WOODCUTTING)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.WOODCUTTING)).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.REPAIR)).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.UNARMED)).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.HERBALISM)).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.EXCAVATION)).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.ARCHERY)).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.SWORDS)).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.AXES)).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.ACROBATICS)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.REPAIR)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.UNARMED)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.HERBALISM)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.EXCAVATION)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.ARCHERY)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.SWORDS)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.AXES)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.ACROBATICS)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.MINING)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.WOODCUTTING)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.WOODCUTTING)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.REPAIR)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.UNARMED)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.HERBALISM)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.EXCAVATION)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.ARCHERY)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.SWORDS)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.AXES)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.ACROBATICS)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.REPAIR)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.UNARMED)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.HERBALISM)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.EXCAVATION)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.ARCHERY)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.SWORDS)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.AXES)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.ACROBATICS)).append(":");
                         writer.append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.TAMING)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.TAMING)).append(":");
-                        writer.append((int) profile.getSkillDATS(TransitAbilityType.BERSERK)).append(":");
-                        writer.append((int) profile.getSkillDATS(TransitAbilityType.GIGA_DRILL_BREAKER)).append(":");
-                        writer.append((int) profile.getSkillDATS(TransitAbilityType.TREE_FELLER)).append(":");
-                        writer.append((int) profile.getSkillDATS(TransitAbilityType.GREEN_TERRA)).append(":");
-                        writer.append((int) profile.getSkillDATS(TransitAbilityType.SERRATED_STRIKES)).append(":");
-                        writer.append((int) profile.getSkillDATS(TransitAbilityType.SKULL_SPLITTER)).append(":");
-                        writer.append((int) profile.getSkillDATS(TransitAbilityType.SUPER_BREAKER)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.TAMING)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.TAMING)).append(":");
+                        writer.append((int) profile.skillsDATS.get(TransitAbilityType.BERSERK)).append(":");
+                        writer.append((int) profile.skillsDATS.get(TransitAbilityType.GIGA_DRILL_BREAKER)).append(":");
+                        writer.append((int) profile.skillsDATS.get(TransitAbilityType.TREE_FELLER)).append(":");
+                        writer.append((int) profile.skillsDATS.get(TransitAbilityType.GREEN_TERRA)).append(":");
+                        writer.append((int) profile.skillsDATS.get(TransitAbilityType.SERRATED_STRIKES)).append(":");
+                        writer.append((int) profile.skillsDATS.get(TransitAbilityType.SKULL_SPLITTER)).append(":");
+                        writer.append((int) profile.skillsDATS.get(TransitAbilityType.SUPER_BREAKER)).append(":");
                         TransitHudType hudType = profile.hudType;
                         writer.append(hudType == null ? "NULL" : hudType.toString()).append(":");
-                        writer.append(profile.getSkillLevel(TransitSkillType.FISHING)).append(":");
-                        writer.append(profile.getSkillXpLevel(TransitSkillType.FISHING)).append(":");
-                        writer.append((int) profile.getSkillDATS(TransitAbilityType.BLAST_MINING)).append(":");
+                        writer.append(profile.skills.get(TransitSkillType.FISHING)).append(":");
+                        writer.append(profile.skillsXp.get(TransitSkillType.FISHING)).append(":");
+                        writer.append((int) profile.skillsDATS.get(TransitAbilityType.BLAST_MINING)).append(":");
                         writer.append(System.currentTimeMillis() / MILLIS_CONVERSION_FACTOR).append(":");
                         TransitMobHealthbarType mobHealthbarType = profile.mobHealthbarType;
                         writer.append(mobHealthbarType == null ? "NULL" : mobHealthbarType.toString()).append(":");
@@ -272,7 +267,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 }
 
                 // Write the new file
-                out = new FileWriter(usersFilePath);
+                out = new FileWriter(usersFile);
                 out.write(writer.toString());
             }
             catch (Exception e) {
@@ -287,24 +282,27 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
     public List<TransitLeaderboardValue> readLeaderboard(LeaderboardRequest request) {
         updateLeaderboards();
-        List<TransitLeaderboardValue> statsList = skillName.equalsIgnoreCase("all") ? powerLevels : playerStatHash.get(TransitSkillType.getSkill(skillName));
-        int fromIndex = (Math.max(pageNumber, 1) - 1) * statsPerPage;
+        List<TransitLeaderboardValue> statsList = playerStatHash.get(request.skillType);
+        int fromIndex = (Math.max(request.page, 1) - 1) * request.perPage;
 
-        return statsList.subList(Math.min(fromIndex, statsList.size()), Math.min(fromIndex + statsPerPage, statsList.size()));
+        return statsList.subList(Math.min(fromIndex, statsList.size()), Math.min(fromIndex + request.perPage, statsList.size()));
     }
 
     public TransitPlayerRank readRank(String playerName) {
         updateLeaderboards();
 
-        Map<String, Integer> skills = new HashMap<String, Integer>();
+        Map<TransitSkillType, Integer> skills = new HashMap<TransitSkillType, Integer>();
 
-        for (TransitSkillType skill : TransitSkillType.nonChildSkills()) {
-            skills.put(skill.name(), getPlayerRank(playerName, playerStatHash.get(skill)));
+        for (TransitSkillType skill : TransitSkillType.values()) {
+            skills.put(skill, getPlayerRank(playerName, playerStatHash.get(skill)));
         }
 
-        skills.put("ALL", getPlayerRank(playerName, powerLevels));
+        skills.put(null, getPlayerRank(playerName, powerLevels));
 
-        return skills;
+        TransitPlayerRank ret = new TransitPlayerRank();
+        ret.playerName = playerName;
+        ret.rank = skills;
+        return ret;
     }
 
     public void newUser(String playerName) {
@@ -312,7 +310,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
         synchronized (fileWritingLock) {
             try {
                 // Open the file to write the player
-                out = new BufferedWriter(new FileWriter(plugin.getUsersFilePath(), true));
+                out = new BufferedWriter(new FileWriter(usersFile, true));
 
                 // Add the player to the end
                 out.append(playerName).append(":");
@@ -370,12 +368,11 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
     public TransitPlayerProfile loadPlayerProfile(String playerName, boolean create) {
         BufferedReader in = null;
-        String usersFilePath = plugin.getUsersFilePath();
 
         synchronized (fileWritingLock) {
             try {
                 // Open the user file
-                in = new BufferedReader(new FileReader(usersFilePath));
+                in = new BufferedReader(new FileReader(usersFile));
                 String line;
 
                 while ((line = in.readLine()) != null) {
@@ -411,12 +408,11 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
     public void convertUsers(DatabaseManager destination) {
         BufferedReader in = null;
-        String usersFilePath = plugin.getUsersFilePath();
 
         synchronized (fileWritingLock) {
             try {
                 // Open the user file
-                in = new BufferedReader(new FileReader(usersFilePath));
+                in = new BufferedReader(new FileReader(usersFile));
                 String line;
 
                 while ((line = in.readLine()) != null) {
@@ -447,12 +443,11 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
     public List<String> getStoredUsers() {
         ArrayList<String> users = new ArrayList<String>();
         BufferedReader in = null;
-        String usersFilePath = plugin.getUsersFilePath();
 
         synchronized (fileWritingLock) {
             try {
                 // Open the user file
-                in = new BufferedReader(new FileReader(usersFilePath));
+                in = new BufferedReader(new FileReader(usersFile));
                 String line;
 
                 while ((line = in.readLine()) != null) {
@@ -479,7 +474,6 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
             return;
         }
 
-        String usersFilePath = plugin.getUsersFilePath();
         lastUpdate = System.currentTimeMillis(); // Log when the last update was run
         powerLevels.clear(); // Clear old values from the power levels
 
@@ -501,7 +495,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
         // Read from the FlatFile database and fill our arrays with information
         synchronized (fileWritingLock) {
             try {
-                in = new BufferedReader(new FileReader(usersFilePath));
+                in = new BufferedReader(new FileReader(usersFile));
                 String line = "";
                 ArrayList<String> players = new ArrayList<String>();
 
@@ -536,7 +530,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                 }
             }
             catch (Exception e) {
-                plugin.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
+                plugin.getLogger().severe("Exception while reading " + usersFile + " (Are you sure you formatted it correctly?)" + e.toString());
             }
             finally {
                 tryClose(in);
@@ -580,11 +574,10 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
         if (usersFile.exists()) {
             BufferedReader in = null;
             FileWriter out = null;
-            String usersFilePath = plugin.getUsersFilePath();
 
             synchronized (fileWritingLock) {
                 try {
-                    in = new BufferedReader(new FileReader(usersFilePath));
+                    in = new BufferedReader(new FileReader(usersFile));
                     StringBuilder writer = new StringBuilder();
                     String line = "";
 
@@ -648,11 +641,11 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                     }
 
                     // Write the new file
-                    out = new FileWriter(usersFilePath);
+                    out = new FileWriter(usersFile);
                     out.write(writer.toString());
                 }
                 catch (IOException e) {
-                    plugin.getLogger().severe("Exception while reading " + usersFilePath + " (Are you sure you formatted it correctly?)" + e.toString());
+                    plugin.getLogger().severe("Exception while reading " + usersFile + " (Are you sure you formatted it correctly?)" + e.toString());
                 }
                 finally {
                     tryClose(in);
@@ -666,7 +659,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
         try {
             plugin.getLogger().info("Creating mcmmo.users file...");
-            new File(plugin.getUsersFilePath()).createNewFile();
+            usersFile.createNewFile();
         }
         catch (IOException e) {
             e.printStackTrace();
