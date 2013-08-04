@@ -1,6 +1,7 @@
 package me.riking.bungeemmo.bungee.transclude;
 
 import java.util.List;
+import java.util.Set;
 
 import me.riking.bungeemmo.common.data.LeaderboardRequest;
 import me.riking.bungeemmo.common.data.TransitLeaderboardValue;
@@ -17,12 +18,12 @@ public interface DatabaseManager {
     /**
      * Purge users with 0 power level from the database.
      */
-    public void purgePowerlessUsers();
+    public void purgePowerlessUsers(Set<String> online);
 
     /**
      * Purge users who haven't logged on in over a certain time frame from the database.
      */
-    public void purgeOldUsers();
+    public void purgeOldUsers(Set<String> online);
 
     /**
      * Remove a user from the database.

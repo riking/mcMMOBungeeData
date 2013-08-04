@@ -28,6 +28,12 @@ public final class TransitPlayerProfile implements Serializable {
     public transient TransitHudType hudType;
     public transient TransitMobHealthbarType mobHealthbarType;
 
+    public void verify() throws IllegalArgumentException {
+        Validate.noNullElements(new Object[] {
+                playerName, skills, skillsXp, skillsDATS, hudType, mobHealthbarType },
+                "TransitPlayerProfile was not fully constructed!");
+    }
+
     private void readObject(ObjectInputStream in) {
         skills     = new HashMap<TransitSkillType, Integer>();   // Skill & Level
         skillsXp   = new HashMap<TransitSkillType, Float>();     // Skill & XP
@@ -79,23 +85,23 @@ public final class TransitPlayerProfile implements Serializable {
             try {
                 hudType = (TransitHudType) in.readObject();
             } catch (ClassNotFoundException e) {
-                hudType = TransitHudType.NULL; // Use server default
+                hudType = TransitHudType.DEFAULT; // Use server default
             }
 
             try {
                 mobHealthbarType = (TransitMobHealthbarType) in.readObject();
             } catch (ClassNotFoundException e) {
-                mobHealthbarType = TransitMobHealthbarType.NULL; // Use server default
+                mobHealthbarType = TransitMobHealthbarType.DEFAULT; // Use server default
             }
+
+            verify();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void writeObject(ObjectOutputStream out) {
-        Validate.noNullElements(new Object[] {
-                playerName, skills, skillsXp, skillsDATS, hudType, mobHealthbarType },
-                "TransitPlayerProfile was not fully constructed!");
+        verify();
 
         try {
             out.writeUTF(playerName);

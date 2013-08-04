@@ -33,12 +33,12 @@ public class TransitDataConverter {
     }
 
     public static TransitHudType toTransit(HudType mm) {
-        if (mm == null) return TransitHudType.NULL;
+        if (mm == null) return TransitHudType.DEFAULT;
         return TransitHudType.valueOf(mm.name());
     }
 
     public static TransitMobHealthbarType toTransit(MobHealthbarType mm) {
-        if (mm == null) return TransitMobHealthbarType.NULL;
+        if (mm == null) return TransitMobHealthbarType.DEFAULT;
         return TransitMobHealthbarType.valueOf(mm.name());
     }
 
@@ -63,14 +63,14 @@ public class TransitDataConverter {
     }
 
     public static HudType fromTransit(TransitHudType co) {
-        if (co == null || co == TransitHudType.NULL) {
+        if (co == null || co == TransitHudType.DEFAULT) {
             return HudType.STANDARD;
         }
         return HudType.valueOf(co.name());
     }
 
     public static MobHealthbarType fromTransit(TransitMobHealthbarType co) {
-        if (co == null || co == TransitMobHealthbarType.NULL) {
+        if (co == null || co == TransitMobHealthbarType.DEFAULT) {
             return Config.getInstance().getMobHealthbarDefault();
         }
         return MobHealthbarType.valueOf(co.name());

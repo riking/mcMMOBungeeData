@@ -13,8 +13,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.commons.lang.StringUtils;
+import java.util.Set;
 
 import me.riking.bungeemmo.bungee.BungeePlugin;
 import me.riking.bungeemmo.common.data.LeaderboardRequest;
@@ -44,7 +43,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
         updateLeaderboards();
     }
 
-    public void purgePowerlessUsers() {
+    public void purgePowerlessUsers(Set<String> online) {
         int purgedUsers = 0;
 
         plugin.getLogger().info("Purging powerless users...");
@@ -61,6 +60,10 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
 
                 while ((line = in.readLine()) != null) {
                     String[] character = line.split(":");
+                    if (online.contains(character[0])) {
+                        writer.append(line).append("\r\n");
+                        continue;
+                    }
                     Map<TransitSkillType, Integer> skills = getSkillMapFromLine(character);
 
                     boolean powerless = true;
@@ -97,7 +100,7 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
         plugin.getLogger().info("Purged " + purgedUsers + " users from the database.");
     }
 
-    public void purgeOldUsers() {
+    public void purgeOldUsers(Set<String> online) {
         int removedPlayers = 0;
         long currentTime = System.currentTimeMillis();
 
@@ -121,6 +124,10 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                     }
                     String[] character = line.split(":");
                     String name = character[0];
+                    if (online.contains(name)) {
+                        writer.append(line).append("\r\n");
+                        continue;
+                    }
                     long lastPlayed;
                     boolean rewrite = false;
                     try {
@@ -620,7 +627,6 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
                                 // Making old-purge work with flatfile
                                 // Version 1.4.00-dev
                                 // commmit 3f6c07ba6aaf44e388cc3b882cac3d8f51d0ac28
-                                String playerName = character[0];
                                 long time = System.currentTimeMillis();
                                 newLine.append(time / MILLIS_CONVERSION_FACTOR).append(":");
                                 announce = true; // TODO move this down
@@ -743,14 +749,14 @@ public final class FlatfileDatabaseManager implements DatabaseManager {
             profile.hudType = TransitHudType.valueOf(character[33]);
         }
         catch (Exception e) {
-            profile.hudType = TransitHudType.NULL; // Shouldn't happen unless database is being tampered with
+            profile.hudType = TransitHudType.DEFAULT; // Shouldn't happen unless database is being tampered with
         }
 
         try {
             profile.mobHealthbarType = TransitMobHealthbarType.valueOf(character[38]);
         }
         catch (Exception e) {
-            profile.mobHealthbarType = TransitMobHealthbarType.NULL;
+            profile.mobHealthbarType = TransitMobHealthbarType.DEFAULT;
         }
         profile.playerName = character[0];
         profile.skills = skills;

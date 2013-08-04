@@ -6,5 +6,5 @@ public enum TransitHudType implements java.io.Serializable {
     SMALL,
     RETRO,
     // Special: Use Default
-    NULL;
+    DEFAULT;
 }

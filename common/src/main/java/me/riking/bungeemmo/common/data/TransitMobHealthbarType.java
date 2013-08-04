@@ -5,5 +5,5 @@ public enum TransitMobHealthbarType implements java.io.Serializable {
     BAR,
     DISABLED,
     // Special: Use Default
-    NULL;
+    DEFAULT;
 }
